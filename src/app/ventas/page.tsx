@@ -5,6 +5,7 @@ import { Card, Filters, money, td, th } from "@/components/ui";
 import { DashboardNotice } from "@/components/dashboard-notice";
 import { AutoRefresh } from "@/components/auto-refresh";
 
+export const metadata = { title: "Ventas" };
 export const dynamic = "force-dynamic";
 
 const TONE: Record<string, string> = {

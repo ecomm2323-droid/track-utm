@@ -66,7 +66,7 @@ export function UtmBuilder() {
           </label>
         </div>
         <div className="flex gap-2 items-center mt-3">
-          <input readOnly className={input} placeholder="La URL generada aparecerá aquí" value={organic} />
+          <input readOnly aria-label="URL generada" className={input} placeholder="La URL generada aparecerá aquí" value={organic} />
           {organic && <CopyButton text={organic} />}
         </div>
       </section>

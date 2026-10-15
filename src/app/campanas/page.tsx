@@ -7,6 +7,7 @@ import { SyncMeta } from "@/components/sync-meta";
 import { DashboardNotice } from "@/components/dashboard-notice";
 import { AutoRefresh } from "@/components/auto-refresh";
 
+export const metadata = { title: "Meta" };
 export const dynamic = "force-dynamic";
 
 const LEVELS: Record<Level, string> = { campaign: "Campañas", adset: "Conjuntos", ad: "Anuncios" };
@@ -30,7 +31,7 @@ const STATUS = (s: string | null): [string, string] =>
 export default async function Campanas({
   searchParams,
 }: {
-  searchParams: Promise<{ p?: string; m?: string; l?: string; f?: string; t?: string; c?: string; s?: string; v?: string }>;
+  searchParams: Promise<{ p?: string; m?: string; l?: string; f?: string; t?: string; c?: string; s?: string; v?: string; o?: string }>;
 }) {
   const sp = await searchParams;
   const p = asPeriod(sp.p);
@@ -43,8 +44,11 @@ export default async function Campanas({
   const c = ids(sp.c);
   const s = level === "campaign" ? [] : ids(sp.s);
   const date = p === "custom" && sp.f ? `&f=${sp.f}&t=${sp.t ?? sp.f}` : "";
-  const url = (l: Level, nc: string[], ns: string[]) =>
-    `/campanas?p=${p}&m=${m}&v=${v}&l=${l}${date}${nc.length ? `&c=${nc.join(",")}` : ""}${ns.length ? `&s=${ns.join(",")}` : ""}`;
+  const SORTS = { sales: "Ventas", spend: "Gastos", revenue: "Ingresos", profit: "Ganancia", roas: "ROAS" } as const;
+  type SortKey = keyof typeof SORTS;
+  const o: SortKey = sp.o && sp.o in SORTS ? (sp.o as SortKey) : "spend";
+  const url = (l: Level, nc: string[], ns: string[], no: SortKey = o) =>
+    `/campanas?p=${p}&m=${m}&v=${v}&o=${no}&l=${l}${date}${nc.length ? `&c=${nc.join(",")}` : ""}${ns.length ? `&s=${ns.join(",")}` : ""}`;
   const toggle = (id: string) => {
     const on = (level === "campaign" ? c : s).includes(id);
     const flip = (a: string[]) => (on ? a.filter((x) => x !== id) : [...a, id]);
@@ -53,6 +57,17 @@ export default async function Campanas({
   const pid = getProject().id;
   const dash = await activeDashboard();
   const rows = byLevel(pid, from, to, m, level, dash?.ad_account_id ?? "", c, s);
+  const revOf = (r: (typeof rows)[number]) => (v === "neta" ? r.net : r.revenue);
+  const metric: Record<SortKey, (r: (typeof rows)[number]) => number> = {
+    sales: (r) => r.sales, spend: (r) => r.spend, revenue: revOf,
+    profit: (r) => revOf(r) - r.spend, roas: (r) => (r.spend ? revOf(r) / r.spend : -1),
+  };
+  rows.sort((a, b) => metric[o](b) - metric[o](a));
+  const tot = rows.reduce(
+    (t, r) => ({ sales: t.sales + r.sales, spend: t.spend + r.spend, rev: t.rev + revOf(r), clicks: t.clicks + r.clicks, imp: t.imp + r.impressions, ic: t.ic + r.ic }),
+    { sales: 0, spend: 0, rev: 0, clicks: 0, imp: 0, ic: 0 },
+  );
+  const totProfit = tot.rev - tot.spend;
 
   return (
     <>
@@ -65,13 +80,14 @@ export default async function Campanas({
           <Link
             key={l}
             href={url(l, c, l === "ad" ? s : [])}
-            className={`px-4 py-2 rounded border ${l === level ? "border-accent text-white bg-panel" : "border-line text-muted"}`}
+            aria-current={l === level ? "page" : undefined}
+            className={`px-4 py-2.5 rounded-lg border ${l === level ? "border-accent text-white bg-panel" : "border-line text-muted"}`}
           >
             {LEVELS[l]}
           </Link>
         ))}
       </div>
-      <Filters base="/campanas" p={p} m={m} v={v} f={sp.f} t={sp.t} extra={`&l=${level}${c.length ? `&c=${c.join(",")}` : ""}${s.length ? `&s=${s.join(",")}` : ""}`} />
+      <Filters base="/campanas" p={p} m={m} v={v} f={sp.f} t={sp.t} extra={`&o=${o}&l=${level}${c.length ? `&c=${c.join(",")}` : ""}${s.length ? `&s=${s.join(",")}` : ""}`} />
       {(c.length > 0 || s.length > 0) && (
         <p className="text-xs text-muted mb-2">
           Filtrando por {c.length ? `${c.length} campaña(s)` : ""}{c.length && s.length ? " y " : ""}{s.length ? `${s.length} conjunto(s)` : ""} ·{" "}
@@ -79,15 +95,28 @@ export default async function Campanas({
         </p>
       )}
       <Card className="overflow-x-auto p-0">
-        <table className="w-full">
+        <table className="w-full meta-table">
           <thead>
             <tr>
               <th className={th} />
-              {COLUMNS.map(([h, tip], i) => (
-                <th key={h} title={tip} className={`${th} ${i === 1 ? "sticky left-0 bg-[#12141f]" : ""}`}>
-                  {h === "Campaña" ? LEVELS[level].slice(0, -1) : h}{tip ? " ⓘ" : ""}
-                </th>
-              ))}
+              {COLUMNS.map(([h, tip], i) => {
+                const key = (Object.keys(SORTS) as SortKey[]).find((k) => SORTS[k] === h);
+                return (
+                  <th
+                    key={h}
+                    title={tip}
+                    aria-sort={key && key === o ? "descending" : undefined}
+                    className={`${th} ${i === 1 ? "sticky left-0 bg-[#12141f]" : ""}`}
+                  >
+                    {key ? (
+                      <Link href={url(level, c, s, key)} className={`underline decoration-dotted ${key === o ? "text-white" : ""}`}>
+                        {h}{key === o ? " ↓" : ""}
+                      </Link>
+                    ) : h === "Campaña" ? LEVELS[level].slice(0, -1) : h}
+                    {tip ? " ⓘ" : ""}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -101,17 +130,19 @@ export default async function Campanas({
                     {level !== "ad" && (
                       <Link
                         href={toggle(r.id)}
-                        title={level === "campaign" ? "Filtrar conjuntos y anuncios por esta campaña" : "Filtrar anuncios por este conjunto"}
-                        className={`inline-block h-4 w-8 rounded-full border ${(level === "campaign" ? c : s).includes(r.id) ? "bg-accent border-accent neon" : "border-line bg-white/5"}`}
+                        aria-label={`${(level === "campaign" ? c : s).includes(r.id) ? "Quitar filtro de" : level === "campaign" ? "Filtrar conjuntos y anuncios por la campaña" : "Filtrar anuncios por el conjunto"} ${r.name}`}
+                        className="inline-flex p-3 -m-3"
                       >
-                        <span className={`block h-3 w-3 mt-px rounded-full bg-white transition-transform ${(level === "campaign" ? c : s).includes(r.id) ? "translate-x-[17px]" : "translate-x-px"}`} />
+                        <span className={`block h-4 w-8 rounded-full border ${(level === "campaign" ? c : s).includes(r.id) ? "bg-accent border-accent neon" : "border-line bg-white/5"}`}>
+                          <span className={`block h-3 w-3 mt-px rounded-full bg-white transition-transform ${(level === "campaign" ? c : s).includes(r.id) ? "translate-x-[17px]" : "translate-x-px"}`} />
+                        </span>
                       </Link>
                     )}
                   </td>
                   <td className={`${td} ${st[1]}`}>{st[0]}</td>
-                  <td className={`${td} sticky left-0 bg-[#12141f] max-w-xs`}>
+                  <td className={`${td} sticky left-0 bg-[#12141f] max-w-[8.5rem] md:max-w-xs`}>
                     <div className="truncate">{r.name}</div>
-                    <div className="font-mono text-[10px] text-muted">{r.id}</div>
+                    <div className="font-mono text-[11px] text-muted">{r.id}</div>
                   </td>
                   <td className={td}>{usd(r.budget)}</td>
                   <td className={td}>{r.updated ? new Date(r.updated).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" }) : "—"}</td>
@@ -140,8 +171,36 @@ export default async function Campanas({
               <tr><td className={`${td} text-muted`} colSpan={COLUMNS.length + 1}>Sin datos de esta cuenta en el período. Sincronizá Meta.</td></tr>
             )}
           </tbody>
+          {rows.length > 0 && (
+            <tfoot>
+              <tr className="font-semibold bg-white/5">
+                <td className={td} />
+                <td className={td} />
+                <td className={`${td} sticky left-0 bg-[#12141f]`}>Total ({rows.length})</td>
+                <td className={td} />
+                <td className={td} />
+                <td className={td}>{tot.sales}</td>
+                <td className={td}>{usd(tot.sales ? tot.spend / tot.sales : null)}</td>
+                <td className={td}>{usd(tot.spend || null)}</td>
+                <td className={td}>{usd(tot.rev || null)}</td>
+                <td className={`${td} ${totProfit < 0 ? "text-bad" : totProfit > 0 ? "text-good" : ""}`}>{tot.spend || tot.rev ? money(totProfit) : "—"}</td>
+                <td className={td}>{tot.spend ? `${(tot.rev / tot.spend).toFixed(2)}x` : "—"}</td>
+                <td className={td}>{pct(tot.rev ? totProfit / tot.rev : null)}</td>
+                <td className={td}>{pct(tot.spend ? totProfit / tot.spend : null)}</td>
+                <td className={td}>{tot.ic}</td>
+                <td className={td}>{usd(tot.ic ? tot.spend / tot.ic : null)}</td>
+                <td className={td}>{usd(tot.clicks ? tot.spend / tot.clicks : null)}</td>
+                <td className={td}>{pct(tot.imp ? tot.clicks / tot.imp : null)}</td>
+                <td className={td}>{usd(tot.imp ? (tot.spend / tot.imp) * 1000 : null)}</td>
+                <td className={td}>{tot.imp.toLocaleString("en-US")}</td>
+                <td className={td}>{tot.clicks.toLocaleString("en-US")}</td>
+                <td className={td} colSpan={3} />
+              </tr>
+            </tfoot>
+          )}
         </table>
       </Card>
+      <p className="text-xs text-muted mt-3 md:hidden">En el celular se ven las columnas principales; abrí en una pantalla grande para ver las 22.</p>
       <p className="text-xs text-muted mt-3">Gasto, clics, impresiones, estado y presupuesto vienen de Meta; ventas e ingresos, de tus webhooks atribuidos.</p>
     </>
   );

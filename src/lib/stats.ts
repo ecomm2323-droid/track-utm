@@ -227,3 +227,39 @@ export const sales = (pid: number, from: number, to: number, model: Model, acc: 
     model, pid, from, to, model, pid, acc, limit,
   );
 };
+
+export const lastSale = (pid: number, acc: string, model: Model) =>
+  q1<{ ts: number | null }>(
+    `select max(c.ts) ts from conversion c where c.project_id=? and c.status='approved' and ${ACC_SALES}`,
+    pid, model, pid, acc,
+  )?.ts ?? null;
+
+export const usdSet = (pid: number) => q("select 1 from setting where project_id=? and key='usd_rate'", pid).length > 0;
+
+export type Day = { date: string; spend: number; rev: number };
+
+// Spend (Meta, USD) and approved revenue (USD, gross or net) per local day; capped to the last 92 days of the range.
+export function daily(pid: number, from: number, to: number, model: Model, acc: string, basis: Basis): Day[] {
+  const r = usdRate(pid);
+  const start = Math.max(from, to - 92 * 864e5);
+  const spend = new Map(
+    q<{ d: string; s: number }>(
+      "select date d, sum(spend) s from meta_ad_day where project_id=? and ad_account_id=? and date>=? and date<? group by date",
+      pid, acc, ymd(start), ymd(to),
+    ).map((x) => [x.d, x.s]),
+  );
+  const expr = basis === "neta" ? netUsd("c", r) : grossUsd("c", r);
+  const rev = new Map(
+    q<{ d: string; v: number }>(
+      `select strftime('%Y-%m-%d', c.ts/1000, 'unixepoch', 'localtime') d, sum(${expr}) v from conversion c
+        where c.project_id=? and c.status='approved' and c.ts>=? and c.ts<? and ${ACC_SALES} group by d`,
+      pid, start, to, model, pid, acc,
+    ).map((x) => [x.d, x.v]),
+  );
+  const out: Day[] = [];
+  for (let t = start; t < to; t += 864e5) {
+    const date = ymd(t);
+    out.push({ date, spend: spend.get(date) ?? 0, rev: rev.get(date) ?? 0 });
+  }
+  return out;
+}

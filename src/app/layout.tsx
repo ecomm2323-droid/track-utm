@@ -8,7 +8,7 @@ import { TokenNotice } from "@/components/token-notice";
 import { activeDashboard } from "@/lib/active-dashboard";
 
 export const metadata: Metadata = {
-  title: "Attribution",
+  title: { default: "Attribution", template: "%s · Attribution" },
   description: "Ad attribution and tracking",
 };
 

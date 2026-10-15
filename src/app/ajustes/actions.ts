@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getProject, run } from "@/lib/db";
 
 export async function savePricing(form: FormData) {
@@ -17,4 +18,5 @@ export async function savePricing(form: FormData) {
     else run("delete from product_net where project_id=? and product=?", pid, product);
   }
   revalidatePath("/", "layout");
+  redirect("/ajustes?ok=1");
 }

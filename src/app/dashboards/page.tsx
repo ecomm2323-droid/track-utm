@@ -2,8 +2,10 @@ import { getProject } from "@/lib/db";
 import { dashboards } from "@/lib/dashboards";
 import { activeDashboard } from "@/lib/active-dashboard";
 import { Card, td, th } from "@/components/ui";
+import { ConfirmButton } from "@/components/confirm-button";
 import { createDashboard, deleteDashboard } from "./actions";
 
+export const metadata = { title: "Dashboards" };
 export const dynamic = "force-dynamic";
 
 const field = "bg-bg border border-line rounded px-3 py-2 outline-none focus:border-accent";
@@ -18,9 +20,9 @@ export default async function Dashboards() {
       <div className="space-y-3">
         <Card title="Crear dashboard (una cuenta publicitaria)">
           <form action={createDashboard} className="flex flex-wrap gap-2">
-            <input name="name" placeholder="Nombre (ej. Diarios con historia)" className={field} />
-            <input name="account" placeholder="ID de cuenta (act_123…)" className={field} required />
-            <button className="px-4 py-2 rounded bg-accent text-white">Crear</button>
+            <input name="name" aria-label="Nombre del dashboard" placeholder="Nombre (ej. Diarios con historia)" className={field} />
+            <input name="account" aria-label="ID de la cuenta publicitaria" placeholder="ID de cuenta (act_123…)" className={field} required />
+            <button className="px-4 py-2.5 rounded-lg bg-accent text-white">Crear</button>
           </form>
           <p className="text-muted text-xs mt-3">
             Cada dashboard muestra solo el gasto y las ventas atribuidas a esa cuenta. Después de crear, tocá Sincronizar Meta en Resumen.
@@ -45,7 +47,7 @@ export default async function Dashboards() {
                   <td className={td}>
                     <form action={deleteDashboard}>
                       <input type="hidden" name="id" value={d.id} />
-                      <button className="text-bad text-xs underline">Eliminar</button>
+                      <ConfirmButton message="¿Eliminar este dashboard?" className="text-bad text-xs underline py-2">Eliminar</ConfirmButton>
                     </form>
                   </td>
                 </tr>

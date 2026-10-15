@@ -1,5 +1,7 @@
 import { login } from "./actions";
 
+export const metadata = { title: "Ingresar" };
+
 export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { error } = await searchParams;
   return (
@@ -12,6 +14,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
           autoFocus
           required
           placeholder="Contraseña"
+          aria-label="Contraseña"
           className="w-full bg-bg border border-line rounded px-3 py-2 outline-none focus:border-accent"
         />
         {error && <p className="text-bad text-xs">Contraseña incorrecta o demasiados intentos.</p>}

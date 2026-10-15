@@ -1,5 +1,7 @@
 import { UtmBuilder } from "./utm-builder";
 
+export const metadata = { title: "UTMs" };
+
 export default function Utms() {
   return (
     <>

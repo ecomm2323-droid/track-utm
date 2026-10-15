@@ -5,11 +5,13 @@ import { lastBackups } from "@/lib/backup";
 import { tokenDaysLeft } from "@/lib/meta";
 import { savePricing } from "./actions";
 
+export const metadata = { title: "Ajustes" };
 export const dynamic = "force-dynamic";
 
 const field = "bg-black/30 border border-line rounded-lg px-3 py-2 outline-none focus:border-accent text-white";
 
-export default function Ajustes() {
+export default async function Ajustes({ searchParams }: { searchParams: Promise<{ ok?: string }> }) {
+  const saved = (await searchParams).ok === "1";
   const pid = getProject().id;
   const rate = usdRate(pid);
   const set = q("select 1 from setting where project_id=? and key='usd_rate'", pid).length > 0;
@@ -23,11 +25,12 @@ export default function Ajustes() {
   return (
     <>
       <h1 className="text-lg font-semibold mb-4">Ajustes de precios</h1>
+      {saved && <p role="status" className="mb-3 rounded-lg border border-good/40 bg-good/10 px-3 py-2 text-good">Guardado.</p>}
       <form action={savePricing} className="space-y-3">
         <Card title="Valor del dólar">
           <div className="flex items-center gap-3 flex-wrap">
-            <label className="text-muted">1 USD =</label>
-            <input name="rate" defaultValue={set ? rate : ""} placeholder="1200" inputMode="decimal" className={`${field} w-32`} />
+            <label htmlFor="rate" className="text-muted">1 USD =</label>
+            <input id="rate" name="rate" defaultValue={set ? rate : ""} placeholder="1200" inputMode="decimal" className={`${field} w-32`} />
             <span className="text-muted">ARS</span>
           </div>
           <p className="text-xs text-muted mt-2">
@@ -51,7 +54,7 @@ export default function Ajustes() {
                   <td className={td}>{p.n}</td>
                   <td className={td}>{money(p.avg)}</td>
                   <td className={td}>
-                    <input name={`net_${i}`} defaultValue={p.net ?? ""} placeholder="ej. 38000" inputMode="decimal" className={`${field} w-36`} />
+                    <input aria-label={`Neto en ARS de ${p.product}`} name={`net_${i}`} defaultValue={p.net ?? ""} placeholder="ej. 38000" inputMode="decimal" className={`${field} w-36`} />
                   </td>
                   <td className={`${td} text-good`}>{p.net ? money(p.net / rate) : "—"}</td>
                 </tr>
@@ -72,7 +75,8 @@ export default function Ajustes() {
             Copia automática diaria en el servidor (últimas 7): {lastBackups().length ? lastBackups()[0].replace("utmify-", "").replace(".db", "") : "todavía ninguna"}.
             {" "}Meta: {tokenDaysLeft() === undefined ? "sin conexión guardada" : `token vigente, ${tokenDaysLeft()} día(s) (se renueva solo)`}.
           </p>
-          <a href="/api/backup" className="inline-block mt-3 px-4 py-2 rounded-lg border border-line hover:border-accent">Descargar copia ahora</a>
+          <a href="/api/meta/connect" className="inline-block mt-3 mr-2 px-4 py-2.5 rounded-lg border border-line hover:border-accent">Conectar / reconectar con Meta</a>
+          <a href="/api/backup" className="inline-block mt-3 px-4 py-2.5 rounded-lg border border-line hover:border-accent">Descargar copia ahora</a>
           <p className="text-xs text-muted mt-2">Guardá una copia en tu PC de vez en cuando: las automáticas viven en el mismo disco que los datos.</p>
         </Card>
       </div>

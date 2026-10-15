@@ -3,9 +3,11 @@ import { headers } from "next/headers";
 import { getProject, q } from "@/lib/db";
 import { PLATFORMS } from "@/lib/webhooks";
 import { Card, td, th } from "@/components/ui";
+import { ConfirmButton } from "@/components/confirm-button";
 import { CopyButton } from "@/components/copy-button";
 import { createWebhook, deleteWebhook } from "./actions";
 
+export const metadata = { title: "Integraciones" };
 export const dynamic = "force-dynamic";
 
 const TABS = { tracker: "Tracker", webhooks: "Webhooks", pruebas: "Pruebas" } as const;
@@ -86,7 +88,7 @@ function Webhooks({ base, projectId }: { base: string; projectId: number }) {
           <select name="platform" className={field}>
             {PLATFORMS.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
-          <input name="name" placeholder="Nombre (opcional)" className={field} />
+          <input name="name" aria-label="Nombre del webhook" placeholder="Nombre (opcional)" className={field} />
           <button className="px-4 py-2 rounded bg-accent text-white">Agregar webhook</button>
         </form>
         <p className="text-muted text-xs mt-3">
@@ -103,7 +105,7 @@ function Webhooks({ base, projectId }: { base: string; projectId: number }) {
             <Code text={url} />
             <form action={deleteWebhook} className="mt-3">
               <input type="hidden" name="id" value={w.id} />
-              <button className="text-bad text-xs underline">Eliminar</button>
+              <ConfirmButton message="¿Eliminar este webhook? Las ventas dejarán de llegar por esta URL." className="text-bad text-xs underline py-2">Eliminar</ConfirmButton>
             </form>
           </Card>
         );
