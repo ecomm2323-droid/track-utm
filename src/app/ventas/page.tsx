@@ -1,6 +1,6 @@
 import { getProject } from "@/lib/db";
 import { activeDashboard } from "@/lib/active-dashboard";
-import { asModel, asPeriod, range, sales } from "@/lib/stats";
+import { asBasis, asModel, asPeriod, range, sales } from "@/lib/stats";
 import { Card, Filters, money, td, th } from "@/components/ui";
 import { DashboardNotice } from "@/components/dashboard-notice";
 import { AutoRefresh } from "@/components/auto-refresh";
@@ -15,10 +15,11 @@ const TONE: Record<string, string> = {
   rejected: "text-muted",
 };
 
-export default async function Ventas({ searchParams }: { searchParams: Promise<{ p?: string; m?: string; f?: string; t?: string }> }) {
+export default async function Ventas({ searchParams }: { searchParams: Promise<{ p?: string; m?: string; v?: string; f?: string; t?: string }> }) {
   const sp = await searchParams;
   const p = asPeriod(sp.p);
   const m = asModel(sp.m);
+  const v = asBasis(sp.v);
   const { from, to } = range(p, sp.f, sp.t);
   const dash = await activeDashboard();
   const rows = sales(getProject().id, from, to, m, dash?.ad_account_id ?? "");
@@ -28,7 +29,7 @@ export default async function Ventas({ searchParams }: { searchParams: Promise<{
       <h1 className="text-lg font-semibold mb-1">Ventas</h1>
       <DashboardNotice name={dash?.name} account={dash?.ad_account_id} />
       <AutoRefresh />
-      <Filters base="/ventas" p={p} m={m} f={sp.f} t={sp.t} />
+      <Filters base="/ventas" p={p} m={m} v={v} f={sp.f} t={sp.t} />
       <Card className="overflow-x-auto p-0">
         <table className="w-full">
           <thead>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MODELS, PERIODS, type Model, type Period } from "@/lib/stats";
+import { BASIS, MODELS, PERIODS, type Basis, type Model, type Period } from "@/lib/stats";
 
 export const money = (n: number) =>
   (n < 0 ? "-$" : "$") + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -25,8 +25,8 @@ export function Kpi({ label, value, tone, hint }: { label: string; value: string
 
 // Period + attribution-model switcher; state lives in the URL so pages stay server-rendered.
 // Custom range = p=custom&f=YYYY-MM-DD&t=YYYY-MM-DD (plain GET form, no client JS).
-export function Filters({ base, p, m, f, t, extra = "" }: { base: string; p: Period; m: Model; f?: string; t?: string; extra?: string }) {
-  const href = (np: Period, nm: Model) => `${base}?p=${np}&m=${nm}${np === "custom" && f ? `&f=${f}&t=${t ?? f}` : ""}${extra}`;
+export function Filters({ base, p, m, v, f, t, extra = "" }: { base: string; p: Period; m: Model; v: Basis; f?: string; t?: string; extra?: string }) {
+  const href = (np: Period, nm: Model, nv: Basis = v) => `${base}?p=${np}&m=${nm}&v=${nv}${np === "custom" && f ? `&f=${f}&t=${t ?? f}` : ""}${extra}`;
   const chip = (on: boolean) =>
     `px-3 py-1.5 rounded-lg border ${on ? "bg-accent/20 border-accent text-white neon" : "border-line text-muted hover:text-white hover:border-white/25"}`;
   const today = new Date().toLocaleDateString("sv-SE");
@@ -43,6 +43,7 @@ export function Filters({ base, p, m, f, t, extra = "" }: { base: string; p: Per
         <form method="get" action={base} className="glass rounded-xl p-3 absolute z-20 mt-2 flex flex-col gap-2 w-60 bg-bg/90">
           <input type="hidden" name="p" value="custom" />
           <input type="hidden" name="m" value={m} />
+          <input type="hidden" name="v" value={v} />
           {extras.map(([, k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
           <label className="text-xs text-muted">Desde
             <input type="date" name="f" defaultValue={f} max={today} required className="mt-1 w-full rounded-lg bg-black/30 border border-line px-2 py-1.5 text-white" />
@@ -56,6 +57,10 @@ export function Filters({ base, p, m, f, t, extra = "" }: { base: string; p: Per
       <span className="mx-2 h-5 w-px bg-line" />
       {(Object.keys(MODELS) as Model[]).map((k) => (
         <Link key={k} href={href(p, k)} className={chip(k === m)}>{MODELS[k]}</Link>
+      ))}
+      <span className="mx-2 h-5 w-px bg-line" />
+      {(Object.keys(BASIS) as Basis[]).map((k) => (
+        <Link key={k} href={href(p, m, k)} className={chip(k === v)}>Facturación {BASIS[k].toLowerCase()}</Link>
       ))}
     </div>
   );

@@ -1,6 +1,6 @@
 import { getProject } from "@/lib/db";
 import { activeDashboard } from "@/lib/active-dashboard";
-import { asModel, asPeriod, lastSync, overview, range } from "@/lib/stats";
+import { asBasis, asModel, asPeriod, lastSync, overview, range } from "@/lib/stats";
 import { Bars, Card, Filters, Kpi, money } from "@/components/ui";
 import { SyncMeta } from "@/components/sync-meta";
 import { DashboardNotice } from "@/components/dashboard-notice";
@@ -8,17 +8,19 @@ import { AutoRefresh } from "@/components/auto-refresh";
 
 export const dynamic = "force-dynamic";
 
-export default async function Resumen({ searchParams }: { searchParams: Promise<{ p?: string; m?: string; f?: string; t?: string }> }) {
+export default async function Resumen({ searchParams }: { searchParams: Promise<{ p?: string; m?: string; v?: string; f?: string; t?: string }> }) {
   const sp = await searchParams;
   const p = asPeriod(sp.p);
   const m = asModel(sp.m);
+  const v = asBasis(sp.v);
   const { from, to } = range(p, sp.f, sp.t);
   const pid = getProject().id;
   const dash = await activeDashboard();
   const { k, byMethod, bySource, byProduct, spend } = overview(pid, from, to, m, dash?.ad_account_id ?? "");
   const settled = k.approved + k.rejected;
   const noSpend = spend.spend ? undefined : "Sincronizá Meta para ver gasto";
-  const profit = k.net - spend.spend;
+  const rev = v === "neta" ? k.net : k.rev; // revenue on the chosen basis; profit/ROAS/ROI follow it
+  const profit = rev - spend.spend;
 
   return (
     <>
@@ -26,32 +28,32 @@ export default async function Resumen({ searchParams }: { searchParams: Promise<
       <DashboardNotice name={dash?.name} account={dash?.ad_account_id} />
       <AutoRefresh />
       <SyncMeta last={lastSync(pid)} />
-      <Filters base="/" p={p} m={m} f={sp.f} t={sp.t} />
+      <Filters base="/" p={p} m={m} v={v} f={sp.f} t={sp.t} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
-        <Kpi label="Facturación (USD)" value={money(k.rev)} hint={`Neto tras impuestos: ${money(k.net)}`} />
+        <Kpi label={`Facturación ${v} (USD)`} value={money(rev)} hint={v === "neta" ? `Bruta: ${money(k.rev)}` : `Neta tras impuestos: ${money(k.net)}`} />
         <Kpi label="Ventas aprobadas" value={String(k.approved)} />
-        <Kpi label="Ticket medio" value={k.approved ? money(k.rev / k.approved) : "—"} />
+        <Kpi label="Ticket medio" value={k.approved ? money(rev / k.approved) : "—"} />
         <Kpi label="Tasa de aprobación" value={settled ? `${((k.approved / settled) * 100).toFixed(1)}%` : "—"} />
         <Kpi label="Ventas pendientes" value={String(k.pending)} hint={money(k.pending_value)} />
         <Kpi label="Reembolsos" value={String(k.refunded)} hint={money(k.refunded_value)} />
         <Kpi label="Contracargos" value={String(k.chargebacks)} />
         <Kpi label="Rechazadas" value={String(k.rejected)} />
         <Kpi label="Gasto en anuncios" value={spend.spend ? money(spend.spend) : "—"} hint={noSpend} />
-        <Kpi label="ROAS" value={spend.spend ? `${(k.rev / spend.spend).toFixed(2)}x` : "—"} hint={noSpend} />
-        <Kpi label="Ganancia" value={spend.spend ? money(profit) : "—"} tone={profit < 0 ? "bad" : "good"} hint={spend.spend ? "Neto tras impuestos − gasto (USD)" : noSpend} />
+        <Kpi label="ROAS" value={spend.spend ? `${(rev / spend.spend).toFixed(2)}x` : "—"} hint={noSpend} />
+        <Kpi label="Ganancia" value={spend.spend ? money(profit) : "—"} tone={profit < 0 ? "bad" : "good"} hint={spend.spend ? `Facturación ${v} − gasto (USD)` : noSpend} />
         <Kpi label="ROI" value={spend.spend ? `${((profit / spend.spend) * 100).toFixed(1)}%` : "—"} hint={noSpend} />
       </div>
 
       <div className="grid md:grid-cols-3 gap-3">
         <Card title="Ventas por fuente">
-          <Bars rows={bySource.map((r) => ({ label: r.label, n: r.n, extra: money(r.rev) }))} />
+          <Bars rows={bySource.map((r) => ({ label: r.label, n: r.n, extra: money(v === "neta" ? r.net : r.rev) }))} />
         </Card>
         <Card title="Ventas por método de pago">
           <Bars rows={byMethod.filter((r) => r.n).map((r) => ({ label: r.label, n: r.n }))} />
         </Card>
         <Card title="Ventas por producto">
-          <Bars rows={byProduct.map((r) => ({ label: r.label, n: r.n, extra: money(r.rev) }))} />
+          <Bars rows={byProduct.map((r) => ({ label: r.label, n: r.n, extra: money(v === "neta" ? r.net : r.rev) }))} />
         </Card>
       </div>
     </>

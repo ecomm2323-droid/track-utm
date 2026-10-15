@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getProject } from "@/lib/db";
 import { activeDashboard } from "@/lib/active-dashboard";
-import { asModel, asPeriod, byLevel, lastSync, range, type Level } from "@/lib/stats";
+import { asBasis, asModel, asPeriod, byLevel, lastSync, range, type Level } from "@/lib/stats";
 import { Card, Filters, money, td, th } from "@/components/ui";
 import { SyncMeta } from "@/components/sync-meta";
 import { DashboardNotice } from "@/components/dashboard-notice";
@@ -15,7 +15,7 @@ const LEVELS: Record<Level, string> = { campaign: "Campañas", adset: "Conjuntos
 const COLUMNS: [string, string?][] = [
   ["Estado"], ["Campaña"], ["Presupuesto", "Presupuesto diario. En campañas sin presupuesto propio, suma el de sus conjuntos activos."],
   ["Últ. actualización", "Última modificación en Meta"], ["Ventas"], ["CPA", "Gasto ÷ ventas aprobadas"], ["Gastos"],
-  ["Ingresos", "Ventas aprobadas atribuidas"], ["Ganancia", "Neto tras impuestos (USD) − gasto"],
+  ["Ingresos", "Ventas aprobadas atribuidas (USD, bruta o neta según el filtro)"], ["Ganancia", "Ingresos − gasto (USD)"],
   ["ROAS", "Ingresos ÷ gasto"], ["Margen", "Ganancia ÷ ingresos"], ["ROI", "Ganancia ÷ gasto"],
   ["IC", "Inicios de checkout (pixel de Meta)"], ["CPI", "Gasto ÷ inicios de checkout"], ["CPC", "Gasto ÷ clics"],
   ["CTR", "Clics ÷ impresiones"], ["CPM", "Costo por mil impresiones"], ["Impresiones"], ["Clics", "Todos los clics (Meta)"],
@@ -30,11 +30,12 @@ const STATUS = (s: string | null): [string, string] =>
 export default async function Campanas({
   searchParams,
 }: {
-  searchParams: Promise<{ p?: string; m?: string; l?: string; f?: string; t?: string; c?: string; s?: string }>;
+  searchParams: Promise<{ p?: string; m?: string; l?: string; f?: string; t?: string; c?: string; s?: string; v?: string }>;
 }) {
   const sp = await searchParams;
   const p = asPeriod(sp.p);
   const m = asModel(sp.m);
+  const v = asBasis(sp.v);
   const level: Level = sp.l === "adset" || sp.l === "ad" ? sp.l : "campaign";
   const { from, to } = range(p, sp.f, sp.t);
   // Picked campaigns (c) and adsets (s): comma-separated ids in the URL, they carry across the level tabs.
@@ -43,7 +44,7 @@ export default async function Campanas({
   const s = level === "campaign" ? [] : ids(sp.s);
   const date = p === "custom" && sp.f ? `&f=${sp.f}&t=${sp.t ?? sp.f}` : "";
   const url = (l: Level, nc: string[], ns: string[]) =>
-    `/campanas?p=${p}&m=${m}&l=${l}${date}${nc.length ? `&c=${nc.join(",")}` : ""}${ns.length ? `&s=${ns.join(",")}` : ""}`;
+    `/campanas?p=${p}&m=${m}&v=${v}&l=${l}${date}${nc.length ? `&c=${nc.join(",")}` : ""}${ns.length ? `&s=${ns.join(",")}` : ""}`;
   const toggle = (id: string) => {
     const on = (level === "campaign" ? c : s).includes(id);
     const flip = (a: string[]) => (on ? a.filter((x) => x !== id) : [...a, id]);
@@ -70,7 +71,7 @@ export default async function Campanas({
           </Link>
         ))}
       </div>
-      <Filters base="/campanas" p={p} m={m} f={sp.f} t={sp.t} extra={`&l=${level}${c.length ? `&c=${c.join(",")}` : ""}${s.length ? `&s=${s.join(",")}` : ""}`} />
+      <Filters base="/campanas" p={p} m={m} v={v} f={sp.f} t={sp.t} extra={`&l=${level}${c.length ? `&c=${c.join(",")}` : ""}${s.length ? `&s=${s.join(",")}` : ""}`} />
       {(c.length > 0 || s.length > 0) && (
         <p className="text-xs text-muted mb-2">
           Filtrando por {c.length ? `${c.length} campaña(s)` : ""}{c.length && s.length ? " y " : ""}{s.length ? `${s.length} conjunto(s)` : ""} ·{" "}
@@ -91,7 +92,8 @@ export default async function Campanas({
           </thead>
           <tbody>
             {rows.map((r) => {
-              const profit = r.net - r.spend;
+              const rev = v === "neta" ? r.net : r.revenue;
+              const profit = rev - r.spend;
               const st = STATUS(r.status);
               return (
                 <tr key={r.id} className={(level === "campaign" ? c : s).includes(r.id) ? "bg-accent/10" : ""}>
@@ -116,10 +118,10 @@ export default async function Campanas({
                   <td className={td}>{r.sales}</td>
                   <td className={td}>{usd(r.sales ? r.spend / r.sales : null)}</td>
                   <td className={td}>{usd(r.spend || null)}</td>
-                  <td className={td}>{usd(r.revenue || null)}</td>
-                  <td className={`${td} ${profit < 0 ? "text-bad" : profit > 0 ? "text-good" : ""}`}>{r.spend || r.revenue ? money(profit) : "—"}</td>
-                  <td className={td}>{r.spend ? `${(r.revenue / r.spend).toFixed(2)}x` : "—"}</td>
-                  <td className={td}>{pct(r.revenue ? profit / r.revenue : null)}</td>
+                  <td className={td}>{usd(rev || null)}</td>
+                  <td className={`${td} ${profit < 0 ? "text-bad" : profit > 0 ? "text-good" : ""}`}>{r.spend || rev ? money(profit) : "—"}</td>
+                  <td className={td}>{r.spend ? `${(rev / r.spend).toFixed(2)}x` : "—"}</td>
+                  <td className={td}>{pct(rev ? profit / rev : null)}</td>
                   <td className={td}>{pct(r.spend ? profit / r.spend : null)}</td>
                   <td className={td}>{r.ic}</td>
                   <td className={td}>{usd(r.ic ? r.spend / r.ic : null)}</td>

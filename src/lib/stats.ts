@@ -6,6 +6,11 @@ export type Period = keyof typeof PERIODS | "custom";
 export const MODELS = { last_touch: "Último clic", first_touch: "Primer clic" } as const;
 export type Model = keyof typeof MODELS;
 
+// Which revenue the dashboards show: gross sale value or net after taxes (product_net), both in USD.
+export const BASIS = { bruta: "Bruta", neta: "Neta" } as const;
+export type Basis = keyof typeof BASIS;
+export const asBasis = (v?: string): Basis => (v === "neta" ? "neta" : "bruta");
+
 export const asPeriod = (v?: string): Period => (v === "custom" || (v && v in PERIODS) ? (v as Period) : "hoy");
 export const asModel = (v?: string): Model => (v && v in MODELS ? (v as Model) : "last_touch");
 
@@ -73,14 +78,14 @@ export function overview(pid: number, from: number, to: number, model: Model, ac
        from conversion c where c.project_id=? and c.ts>=? and c.ts<? and ${ACC_SALES} group by label order by n desc`,
     pid, from, to, model, pid, acc,
   );
-  const bySource = q<{ label: string; n: number; rev: number }>(
-    `select a.channel label, count(*) n, sum(${grossUsd("c", r)}) rev from conversion c
+  const bySource = q<{ label: string; n: number; rev: number; net: number }>(
+    `select a.channel label, count(*) n, sum(${grossUsd("c", r)}) rev, sum(${netUsd("c", r)}) net from conversion c
        join attribution a on a.conversion_id=c.id and a.model=?
       where c.project_id=? and c.status='approved' and c.ts>=? and c.ts<? and ${ACC_SALES} group by a.channel order by n desc`,
     model, pid, from, to, model, pid, acc,
   );
-  const byProduct = q<{ label: string; n: number; rev: number }>(
-    `select coalesce(product,'Sin producto') label, count(*) n, sum(${grossUsd("c", r)}) rev from conversion c
+  const byProduct = q<{ label: string; n: number; rev: number; net: number }>(
+    `select coalesce(product,'Sin producto') label, count(*) n, sum(${grossUsd("c", r)}) rev, sum(${netUsd("c", r)}) net from conversion c
       where c.project_id=? and c.status='approved' and c.ts>=? and c.ts<? and ${ACC_SALES} group by label order by n desc`,
     pid, from, to, model, pid, acc,
   );
