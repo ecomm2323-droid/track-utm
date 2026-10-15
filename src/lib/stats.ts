@@ -104,7 +104,31 @@ type Entity = {
 };
 
 // One row per campaign/adset/ad of the account that spent, sold or is active in the period.
-export function byLevel(pid: number, from: number, to: number, model: Model, level: Level, acc: string): Row[] {
+const ph = (a: string[]) => a.map(() => "?").join(",");
+
+// Ids allowed at `level` when campaigns (c) / adsets (s) are picked as filters; undefined = no filter.
+// Adsets filter by their campaign; ads by the picked adsets, else by the adsets of the picked campaigns.
+function scope(pid: number, acc: string, level: Level, c: string[], s: string[]): Set<string> | undefined {
+  const ids = (sql: string, ...p: unknown[]) => q<{ id: string }>(sql, ...p).map((r) => r.id);
+  const adsetsOf = (cs: string[]) => [...ids(
+    `select adset_id id from meta_ad_day where project_id=? and ad_account_id=? and campaign_id in (${ph(cs)})
+     union select id from meta_entity where project_id=? and ad_account_id=? and level='adset' and parent_id in (${ph(cs)})`,
+    pid, acc, ...cs, pid, acc, ...cs,
+  )];
+  if (level === "adset" && c.length) return new Set(adsetsOf(c));
+  if (level === "ad" && (s.length || c.length)) {
+    const as = s.length ? s : adsetsOf(c);
+    if (!as.length) return new Set();
+    return new Set(ids(
+      `select ad_id id from meta_ad_day where project_id=? and ad_account_id=? and adset_id in (${ph(as)})
+       union select id from meta_entity where project_id=? and ad_account_id=? and level='ad' and parent_id in (${ph(as)})`,
+      pid, acc, ...as, pid, acc, ...as,
+    ));
+  }
+  return undefined;
+}
+
+export function byLevel(pid: number, from: number, to: number, model: Model, level: Level, acc: string, camps: string[] = [], sets: string[] = []): Row[] {
   const c = COLS[level];
   const metrics = q<{ id: string; name: string | null; spend: number; clicks: number; impressions: number; ic: number }>(
     `select ${c.metaId} id, max(${c.metaName}) name, sum(spend) spend, sum(clicks) clicks, sum(impressions) impressions, sum(ic) ic
@@ -158,7 +182,9 @@ export function byLevel(pid: number, from: number, to: number, model: Model, lev
     r.minSpend = e.min_spend ?? k?.min_spend ?? null;
     r.maxSpend = e.max_spend ?? k?.max_spend ?? null;
   }
+  const allowed = scope(pid, acc, level, camps, sets);
   return [...rows.values()]
+    .filter((r) => !allowed || allowed.has(r.id))
     .filter((r) => r.spend || r.sales || r.clicks || r.status === "ACTIVE")
     .sort((a, b) => b.spend - a.spend || b.revenue - a.revenue);
 }
