@@ -18,7 +18,7 @@ export default async function Resumen({ searchParams }: { searchParams: Promise<
   const { k, byMethod, bySource, byProduct, spend } = overview(pid, from, to, m, dash?.ad_account_id ?? "");
   const settled = k.approved + k.rejected;
   const noSpend = spend.spend ? undefined : "Sincronizá Meta para ver gasto";
-  const profit = k.rev - spend.spend;
+  const profit = k.net - spend.spend;
 
   return (
     <>
@@ -29,7 +29,7 @@ export default async function Resumen({ searchParams }: { searchParams: Promise<
       <Filters base="/" p={p} m={m} f={sp.f} t={sp.t} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
-        <Kpi label="Facturación neta" value={money(k.rev)} />
+        <Kpi label="Facturación (USD)" value={money(k.rev)} hint={`Neto tras impuestos: ${money(k.net)}`} />
         <Kpi label="Ventas aprobadas" value={String(k.approved)} />
         <Kpi label="Ticket medio" value={k.approved ? money(k.rev / k.approved) : "—"} />
         <Kpi label="Tasa de aprobación" value={settled ? `${((k.approved / settled) * 100).toFixed(1)}%` : "—"} />
@@ -39,7 +39,7 @@ export default async function Resumen({ searchParams }: { searchParams: Promise<
         <Kpi label="Rechazadas" value={String(k.rejected)} />
         <Kpi label="Gasto en anuncios" value={spend.spend ? money(spend.spend) : "—"} hint={noSpend} />
         <Kpi label="ROAS" value={spend.spend ? `${(k.rev / spend.spend).toFixed(2)}x` : "—"} hint={noSpend} />
-        <Kpi label="Ganancia" value={spend.spend ? money(profit) : "—"} tone={profit < 0 ? "bad" : "good"} hint={spend.spend ? "Ventas − gasto (sin costo de producto)" : noSpend} />
+        <Kpi label="Ganancia" value={spend.spend ? money(profit) : "—"} tone={profit < 0 ? "bad" : "good"} hint={spend.spend ? "Neto tras impuestos − gasto (USD)" : noSpend} />
         <Kpi label="ROI" value={spend.spend ? `${((profit / spend.spend) * 100).toFixed(1)}%` : "—"} hint={noSpend} />
       </div>
 

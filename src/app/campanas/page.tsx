@@ -15,7 +15,7 @@ const LEVELS: Record<Level, string> = { campaign: "Campañas", adset: "Conjuntos
 const COLUMNS: [string, string?][] = [
   ["Estado"], ["Campaña"], ["Presupuesto", "Presupuesto diario. En campañas sin presupuesto propio, suma el de sus conjuntos activos."],
   ["Últ. actualización", "Última modificación en Meta"], ["Ventas"], ["CPA", "Gasto ÷ ventas aprobadas"], ["Gastos"],
-  ["Ingresos", "Ventas aprobadas atribuidas"], ["Ganancia", "Ingresos − gasto (sin costo de producto)"],
+  ["Ingresos", "Ventas aprobadas atribuidas"], ["Ganancia", "Neto tras impuestos (USD) − gasto"],
   ["ROAS", "Ingresos ÷ gasto"], ["Margen", "Ganancia ÷ ingresos"], ["ROI", "Ganancia ÷ gasto"],
   ["IC", "Inicios de checkout (pixel de Meta)"], ["CPI", "Gasto ÷ inicios de checkout"], ["CPC", "Gasto ÷ clics"],
   ["CTR", "Clics ÷ impresiones"], ["CPM", "Costo por mil impresiones"], ["Impresiones"], ["Clics", "Todos los clics (Meta)"],
@@ -91,7 +91,7 @@ export default async function Campanas({
           </thead>
           <tbody>
             {rows.map((r) => {
-              const profit = r.revenue - r.spend;
+              const profit = r.net - r.spend;
               const st = STATUS(r.status);
               return (
                 <tr key={r.id} className={(level === "campaign" ? c : s).includes(r.id) ? "bg-accent/10" : ""}>

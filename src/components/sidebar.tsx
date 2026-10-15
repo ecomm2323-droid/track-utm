@@ -16,6 +16,7 @@ const NAV: { href?: string; label: string; icon: string }[] = [
   { label: "Tarifas", icon: "%" },
   { href: "/integraciones", label: "Integraciones", icon: "⇄" },
   { href: "/dashboards", label: "Dashboards", icon: "▦" },
+  { href: "/ajustes", label: "Ajustes", icon: "⚙" },
 ];
 
 export function Sidebar({ dashes, active }: { dashes: Dash[]; active?: number }) {

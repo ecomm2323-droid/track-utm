@@ -9,6 +9,17 @@ export type Model = keyof typeof MODELS;
 export const asPeriod = (v?: string): Period => (v === "custom" || (v && v in PERIODS) ? (v as Period) : "hoy");
 export const asModel = (v?: string): Model => (v && v in MODELS ? (v as Model) : "last_touch");
 
+// Sales arrive in the seller currency (ARS) while Meta spend is USD. Convert with the saved dollar rate
+// (ARS per USD); rate 1 until it is set, which is the old behaviour. Sales already in USD are left as is.
+// Net = what is left per unit after taxes/fees (product_net, in ARS); unset products fall back to the gross value.
+export const usdRate = (pid: number) => {
+  const v = Number(q1<{ value: string }>("select value from setting where project_id=? and key='usd_rate'", pid)?.value);
+  return v > 0 ? v : 1;
+};
+const grossUsd = (c: string, r: number) => `(case when ${c}.currency='USD' then ${c}.value else ${c}.value/${r} end)`;
+const netUsd = (c: string, r: number) =>
+  `(case when ${c}.currency='USD' then ${c}.value else coalesce((select n.net_ars from product_net n where n.project_id=${c}.project_id and n.product=${c}.product), ${c}.value)/${r} end)`;
+
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const parseDay = (v?: string) => {
   if (!v || !DATE.test(v)) return undefined;
@@ -40,14 +51,16 @@ const ACC_SALES = `c.id in (select a.conversion_id from attribution a where a.mo
   (select campaign_id from meta_ad_day where project_id=? and ad_account_id=?))`;
 
 export function overview(pid: number, from: number, to: number, model: Model, acc: string) {
+  const r = usdRate(pid);
   const k = q1<Record<string, number>>(
-    `select coalesce(sum(case when status='approved' then value end),0) rev,
+    `select coalesce(sum(case when status='approved' then ${grossUsd("c", r)} end),0) rev,
+            coalesce(sum(case when status='approved' then ${netUsd("c", r)} end),0) net,
             coalesce(sum(status='approved'),0) approved,
             coalesce(sum(status='pending'),0) pending,
-            coalesce(sum(case when status='pending' then value end),0) pending_value,
+            coalesce(sum(case when status='pending' then ${grossUsd("c", r)} end),0) pending_value,
             coalesce(sum(status='rejected'),0) rejected,
             coalesce(sum(status='refunded'),0) refunded,
-            coalesce(sum(case when status='refunded' then value end),0) refunded_value,
+            coalesce(sum(case when status='refunded' then ${grossUsd("c", r)} end),0) refunded_value,
             coalesce(sum(status='chargeback'),0) chargebacks,
             count(*) total
        from conversion c where c.project_id=? and c.ts>=? and c.ts<? and ${ACC_SALES}`,
@@ -61,13 +74,13 @@ export function overview(pid: number, from: number, to: number, model: Model, ac
     pid, from, to, model, pid, acc,
   );
   const bySource = q<{ label: string; n: number; rev: number }>(
-    `select a.channel label, count(*) n, sum(c.value) rev from conversion c
+    `select a.channel label, count(*) n, sum(${grossUsd("c", r)}) rev from conversion c
        join attribution a on a.conversion_id=c.id and a.model=?
       where c.project_id=? and c.status='approved' and c.ts>=? and c.ts<? and ${ACC_SALES} group by a.channel order by n desc`,
     model, pid, from, to, model, pid, acc,
   );
   const byProduct = q<{ label: string; n: number; rev: number }>(
-    `select coalesce(product,'Sin producto') label, count(*) n, sum(value) rev from conversion c
+    `select coalesce(product,'Sin producto') label, count(*) n, sum(${grossUsd("c", r)}) rev from conversion c
       where c.project_id=? and c.status='approved' and c.ts>=? and c.ts<? and ${ACC_SALES} group by label order by n desc`,
     pid, from, to, model, pid, acc,
   );
@@ -94,7 +107,7 @@ const COLS: Record<Level, { id: string; name: string; touchName: string; metaId:
 export type Row = {
   id: string; name: string; status: string | null; updated: number | null;
   budget: number | null; bid: number | null; minSpend: number | null; maxSpend: number | null;
-  sales: number; revenue: number; spend: number; clicks: number; impressions: number; ic: number;
+  sales: number; revenue: number; net: number; spend: number; clicks: number; impressions: number; ic: number;
 };
 
 type Entity = {
@@ -135,8 +148,10 @@ export function byLevel(pid: number, from: number, to: number, model: Model, lev
        from meta_ad_day where project_id=? and ad_account_id=? and date>=? and date<? group by ${c.metaId}`,
     pid, acc, ymd(from), ymd(to),
   );
-  const sales = q<{ id: string; name: string | null; sales: number; revenue: number }>(
-    `select a.${c.id} id, max(a.${c.name}) name, count(*) sales, coalesce(sum(cv.value),0) revenue
+  const r = usdRate(pid);
+  const sales = q<{ id: string; name: string | null; sales: number; revenue: number; net: number }>(
+    `select a.${c.id} id, max(a.${c.name}) name, count(*) sales, coalesce(sum(${grossUsd("cv", r)}),0) revenue,
+            coalesce(sum(${netUsd("cv", r)}),0) net
        from conversion cv join attribution a on a.conversion_id=cv.id and a.model=?
       where cv.project_id=? and cv.status='approved' and cv.ts>=? and cv.ts<? and a.channel='meta'
         and a.${c.id} in (select ${c.metaId} from meta_ad_day where project_id=? and ad_account_id=?)
@@ -163,14 +178,14 @@ export function byLevel(pid: number, from: number, to: number, model: Model, lev
     if (!r) {
       rows.set(id, (r = {
         id, name: name ?? "Sin identificar", status: null, updated: null, budget: null, bid: null,
-        minSpend: null, maxSpend: null, sales: 0, revenue: 0, spend: 0, clicks: 0, impressions: 0, ic: 0,
+        minSpend: null, maxSpend: null, sales: 0, revenue: 0, net: 0, spend: 0, clicks: 0, impressions: 0, ic: 0,
       }));
     }
     if (name && r.name === "Sin identificar") r.name = name;
     return r;
   };
   for (const m of metrics) Object.assign(row(m.id, m.name), { spend: m.spend, clicks: m.clicks, impressions: m.impressions, ic: m.ic });
-  for (const s of sales) Object.assign(row(s.id, s.name), { sales: s.sales, revenue: s.revenue });
+  for (const s of sales) Object.assign(row(s.id, s.name), { sales: s.sales, revenue: s.revenue, net: s.net });
   for (const e of entities) {
     const k = level === "campaign" ? kids.get(e.id) : undefined;
     const r = row(e.id, e.name);
@@ -193,13 +208,17 @@ export type SaleRow = {
   id: number; ts: number; order_id: string; status: string; value: number; currency: string | null;
   platform: string | null; product: string | null; payment_method: string | null; email: string | null;
   channel: string | null; campaign: string | null; ad_name: string | null; ad_id: string | null; confidence: string | null;
+  usd: number; net: number;
 };
 
-export const sales = (pid: number, from: number, to: number, model: Model, acc: string, limit = 200) =>
-  q<SaleRow>(
+export const sales = (pid: number, from: number, to: number, model: Model, acc: string, limit = 200) => {
+  const r = usdRate(pid);
+  return q<SaleRow>(
     `select c.id, c.ts, c.order_id, c.status, c.value, c.currency, c.platform, c.product, c.payment_method, c.email,
-            a.channel, a.campaign, a.ad_name, a.ad_id, a.confidence
+            a.channel, a.campaign, a.ad_name, a.ad_id, a.confidence,
+            ${grossUsd("c", r)} usd, ${netUsd("c", r)} net
        from conversion c left join attribution a on a.conversion_id=c.id and a.model=?
       where c.project_id=? and c.ts>=? and c.ts<? and ${ACC_SALES} order by c.ts desc limit ?`,
     model, pid, from, to, model, pid, acc, limit,
   );
+};

@@ -63,6 +63,10 @@ CREATE TABLE IF NOT EXISTS meta_entity(
   status TEXT, parent_id TEXT, daily_budget REAL, lifetime_budget REAL, bid_amount REAL, min_spend REAL, max_spend REAL,
   updated_time INTEGER, synced_at INTEGER NOT NULL, PRIMARY KEY(project_id, level, id));
 CREATE INDEX IF NOT EXISTS meta_entity_acc ON meta_entity(project_id, ad_account_id, level);
+CREATE TABLE IF NOT EXISTS setting(
+  project_id INTEGER NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY(project_id, key));
+CREATE TABLE IF NOT EXISTS product_net(
+  project_id INTEGER NOT NULL, product TEXT NOT NULL, net_ars REAL NOT NULL, PRIMARY KEY(project_id, product));
 CREATE TABLE IF NOT EXISTS dashboard(
   id INTEGER PRIMARY KEY, project_id INTEGER NOT NULL, name TEXT NOT NULL, ad_account_id TEXT NOT NULL,
   created_at INTEGER NOT NULL, UNIQUE(project_id, ad_account_id));

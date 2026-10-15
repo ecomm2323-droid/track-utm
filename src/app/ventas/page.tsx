@@ -33,7 +33,7 @@ export default async function Ventas({ searchParams }: { searchParams: Promise<{
         <table className="w-full">
           <thead>
             <tr>
-              {["Fecha", "Pedido", "Estado", "Valor", "Plataforma", "Producto", "Pago", "Fuente", "Campaña", "Anuncio", "Confianza"].map((h) => (
+              {["Fecha", "Pedido", "Estado", "Valor", "Neto USD", "Plataforma", "Producto", "Pago", "Fuente", "Campaña", "Anuncio", "Confianza"].map((h) => (
                 <th key={h} className={th}>{h}</th>
               ))}
             </tr>
@@ -44,7 +44,8 @@ export default async function Ventas({ searchParams }: { searchParams: Promise<{
                 <td className={td}>{new Date(r.ts).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })}</td>
                 <td className={`${td} font-mono text-xs`}>{r.order_id.slice(0, 18)}</td>
                 <td className={`${td} ${TONE[r.status] ?? ""}`}>{r.status}</td>
-                <td className={td}>{money(r.value)}</td>
+                <td className={td}>{money(r.value)} <span className="text-muted text-[10px]">{r.currency ?? ""}</span></td>
+                <td className={td}>{money(r.net)}</td>
                 <td className={td}>{r.platform ?? "—"}</td>
                 <td className={td}>{r.product ?? "—"}</td>
                 <td className={td}>{r.payment_method ?? "—"}</td>
@@ -54,7 +55,7 @@ export default async function Ventas({ searchParams }: { searchParams: Promise<{
                 <td className={`${td} text-muted`}>{r.confidence ?? "—"}</td>
               </tr>
             ))}
-            {!rows.length && <tr><td className={`${td} text-muted`} colSpan={11}>Sin ventas de esta cuenta en el período.</td></tr>}
+            {!rows.length && <tr><td className={`${td} text-muted`} colSpan={12}>Sin ventas de esta cuenta en el período.</td></tr>}
           </tbody>
         </table>
       </Card>
