@@ -3,6 +3,8 @@ import "./globals.css";
 import { Sidebar } from "@/components/sidebar";
 import { getProject } from "@/lib/db";
 import { dashboards } from "@/lib/dashboards";
+import { tokenDaysLeft } from "@/lib/meta";
+import { TokenNotice } from "@/components/token-notice";
 import { activeDashboard } from "@/lib/active-dashboard";
 
 export const metadata: Metadata = {
@@ -17,7 +19,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="es" className="h-full antialiased">
       <body className="min-h-full flex font-sans text-sm">
         <Sidebar dashes={dashes} active={active} />
-        <main className="flex-1 min-w-0 p-4 md:p-6">{children}</main>
+        <main className="flex-1 min-w-0 p-4 md:p-6"><TokenNotice days={tokenDaysLeft()} />{children}</main>
       </body>
     </html>
   );

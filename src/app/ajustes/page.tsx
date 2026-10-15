@@ -1,6 +1,8 @@
 import { getProject, q } from "@/lib/db";
 import { usdRate } from "@/lib/stats";
 import { Card, money, td, th } from "@/components/ui";
+import { lastBackups } from "@/lib/backup";
+import { tokenDaysLeft } from "@/lib/meta";
 import { savePricing } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -63,6 +65,17 @@ export default function Ajustes() {
         </p>
         <button className="px-4 py-2 rounded-lg bg-accent text-white font-medium neon">Guardar</button>
       </form>
+
+      <div className="mt-6">
+        <Card title="Copias de seguridad y conexión">
+          <p className="text-muted">
+            Copia automática diaria en el servidor (últimas 7): {lastBackups().length ? lastBackups()[0].replace("utmify-", "").replace(".db", "") : "todavía ninguna"}.
+            {" "}Meta: {tokenDaysLeft() === undefined ? "sin conexión guardada" : `token vigente, ${tokenDaysLeft()} día(s) (se renueva solo)`}.
+          </p>
+          <a href="/api/backup" className="inline-block mt-3 px-4 py-2 rounded-lg border border-line hover:border-accent">Descargar copia ahora</a>
+          <p className="text-xs text-muted mt-2">Guardá una copia en tu PC de vez en cuando: las automáticas viven en el mismo disco que los datos.</p>
+        </Card>
+      </div>
     </>
   );
 }

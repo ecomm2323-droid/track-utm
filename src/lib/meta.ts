@@ -155,3 +155,28 @@ export async function syncAll(): Promise<{ account: string; rows?: number; error
   }
   return out;
 }
+
+const DAY = 864e5;
+
+// Days left on the saved OAuth token; undefined when none is saved (env-token setups have no expiry info).
+export function tokenDaysLeft(pid = getProject().id): number | undefined {
+  const c = q1<{ expires_at: number }>("select expires_at from meta_connection where project_id=?", pid);
+  return c ? Math.floor((c.expires_at - Date.now()) / DAY) : undefined;
+}
+
+// Long-lived tokens can be exchanged for a fresh ~60-day one while still valid, so extend it quietly
+// once under 30 days are left. Expired tokens can't be extended: the user must reconnect.
+export async function renewToken(pid = getProject().id): Promise<boolean> {
+  const c = q1<{ access_token: string; expires_at: number }>(
+    "select access_token, expires_at from meta_connection where project_id=?", pid,
+  );
+  const client_id = process.env.META_APP_ID;
+  const client_secret = process.env.META_APP_SECRET;
+  if (!c || !client_id || !client_secret || c.expires_at <= Date.now() || c.expires_at - Date.now() > 30 * DAY) return false;
+  const t = await graph<{ access_token: string; expires_in?: number }>(
+    "/oauth/access_token?" +
+      new URLSearchParams({ grant_type: "fb_exchange_token", client_id, client_secret, fb_exchange_token: c.access_token }),
+  );
+  run("update meta_connection set access_token=?, expires_at=? where project_id=?", t.access_token, Date.now() + (t.expires_in ?? 60 * DAY / 1000) * 1000, pid);
+  return true;
+}

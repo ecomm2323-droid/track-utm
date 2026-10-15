@@ -8,14 +8,23 @@ export async function register() {
   if (g.__metaSync) return;
   g.__metaSync = true;
 
-  const { syncAll } = await import("./lib/meta");
-  const run = () =>
-    syncAll().then((list) => {
+  const { syncAll, renewToken } = await import("./lib/meta");
+  const { dailyBackup } = await import("./lib/backup");
+  const run = () => {
+    renewToken().then((r) => r && console.log("[meta] token renovado")).catch((e) => console.error("[meta] renovar token falló:", e.message));
+    try {
+      const f = dailyBackup();
+      if (f) console.log("[backup]", f);
+    } catch (e) {
+      console.error("[backup] falló:", e instanceof Error ? e.message : e);
+    }
+    return syncAll().then((list) => {
       for (const r of list) {
         if (r.error) console.error(`[meta] ${r.account} falló: ${r.error}`);
         else console.log(`[meta] ${r.account}: ${r.rows} filas`);
       }
     });
+  };
 
   setTimeout(run, 5_000);
   setInterval(run, EVERY_MS);
