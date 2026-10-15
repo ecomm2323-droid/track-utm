@@ -30,13 +30,13 @@ const STATUS = (s: string | null): [string, string] =>
 export default async function Campanas({
   searchParams,
 }: {
-  searchParams: Promise<{ p?: string; m?: string; l?: string }>;
+  searchParams: Promise<{ p?: string; m?: string; l?: string; f?: string; t?: string }>;
 }) {
   const sp = await searchParams;
   const p = asPeriod(sp.p);
   const m = asModel(sp.m);
   const level: Level = sp.l === "adset" || sp.l === "ad" ? sp.l : "campaign";
-  const { from, to } = range(p);
+  const { from, to } = range(p, sp.f, sp.t);
   const pid = getProject().id;
   const dash = await activeDashboard();
   const rows = byLevel(pid, from, to, m, level, dash?.ad_account_id ?? "");
@@ -51,20 +51,20 @@ export default async function Campanas({
         {(Object.keys(LEVELS) as Level[]).map((l) => (
           <Link
             key={l}
-            href={`/campanas?p=${p}&m=${m}&l=${l}`}
+            href={`/campanas?p=${p}&m=${m}&l=${l}${p === "custom" && sp.f ? `&f=${sp.f}&t=${sp.t ?? sp.f}` : ""}`}
             className={`px-4 py-2 rounded border ${l === level ? "border-accent text-white bg-panel" : "border-line text-muted"}`}
           >
             {LEVELS[l]}
           </Link>
         ))}
       </div>
-      <Filters base="/campanas" p={p} m={m} extra={`&l=${level}`} />
+      <Filters base="/campanas" p={p} m={m} f={sp.f} t={sp.t} extra={`&l=${level}`} />
       <Card className="overflow-x-auto p-0">
         <table className="w-full">
           <thead>
             <tr>
               {COLUMNS.map(([h, tip], i) => (
-                <th key={h} title={tip} className={`${th} ${i === 1 ? "sticky left-0 bg-panel" : ""}`}>
+                <th key={h} title={tip} className={`${th} ${i === 1 ? "sticky left-0 bg-[#12141f]" : ""}`}>
                   {h === "Campaña" ? LEVELS[level].slice(0, -1) : h}{tip ? " ⓘ" : ""}
                 </th>
               ))}
@@ -77,7 +77,7 @@ export default async function Campanas({
               return (
                 <tr key={r.id}>
                   <td className={`${td} ${st[1]}`}>{st[0]}</td>
-                  <td className={`${td} sticky left-0 bg-panel max-w-xs`}>
+                  <td className={`${td} sticky left-0 bg-[#12141f] max-w-xs`}>
                     <div className="truncate">{r.name}</div>
                     <div className="font-mono text-[10px] text-muted">{r.id}</div>
                   </td>

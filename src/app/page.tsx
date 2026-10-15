@@ -8,11 +8,11 @@ import { AutoRefresh } from "@/components/auto-refresh";
 
 export const dynamic = "force-dynamic";
 
-export default async function Resumen({ searchParams }: { searchParams: Promise<{ p?: string; m?: string }> }) {
+export default async function Resumen({ searchParams }: { searchParams: Promise<{ p?: string; m?: string; f?: string; t?: string }> }) {
   const sp = await searchParams;
   const p = asPeriod(sp.p);
   const m = asModel(sp.m);
-  const { from, to } = range(p);
+  const { from, to } = range(p, sp.f, sp.t);
   const pid = getProject().id;
   const dash = await activeDashboard();
   const { k, byMethod, bySource, byProduct, spend } = overview(pid, from, to, m, dash?.ad_account_id ?? "");
@@ -26,7 +26,7 @@ export default async function Resumen({ searchParams }: { searchParams: Promise<
       <DashboardNotice name={dash?.name} account={dash?.ad_account_id} />
       <AutoRefresh />
       <SyncMeta last={lastSync(pid)} />
-      <Filters base="/" p={p} m={m} />
+      <Filters base="/" p={p} m={m} f={sp.f} t={sp.t} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
         <Kpi label="Facturación neta" value={money(k.rev)} />

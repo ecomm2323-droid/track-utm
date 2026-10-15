@@ -15,11 +15,11 @@ const TONE: Record<string, string> = {
   rejected: "text-muted",
 };
 
-export default async function Ventas({ searchParams }: { searchParams: Promise<{ p?: string; m?: string }> }) {
+export default async function Ventas({ searchParams }: { searchParams: Promise<{ p?: string; m?: string; f?: string; t?: string }> }) {
   const sp = await searchParams;
   const p = asPeriod(sp.p);
   const m = asModel(sp.m);
-  const { from, to } = range(p);
+  const { from, to } = range(p, sp.f, sp.t);
   const dash = await activeDashboard();
   const rows = sales(getProject().id, from, to, m, dash?.ad_account_id ?? "");
 
@@ -28,7 +28,7 @@ export default async function Ventas({ searchParams }: { searchParams: Promise<{
       <h1 className="text-lg font-semibold mb-1">Ventas</h1>
       <DashboardNotice name={dash?.name} account={dash?.ad_account_id} />
       <AutoRefresh />
-      <Filters base="/ventas" p={p} m={m} />
+      <Filters base="/ventas" p={p} m={m} f={sp.f} t={sp.t} />
       <Card className="overflow-x-auto p-0">
         <table className="w-full">
           <thead>

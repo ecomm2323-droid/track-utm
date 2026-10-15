@@ -1,19 +1,53 @@
 @import "tailwindcss";
 
+/* Glass tokens (replica/design/tokens.json). Old class names kept so every page restyles at once. */
 @theme {
-  --color-bg: #0e1124;
-  --color-side: #171a34;
-  --color-panel: #1b1f3d;
-  --color-line: #2a2f55;
-  --color-muted: #8b92b8;
-  --color-accent: #1366ff;
-  --color-good: #2fd27a;
-  --color-bad: #ff5c6c;
+  --color-bg: #07080f;
+  --color-side: rgba(255, 255, 255, 0.03);
+  --color-panel: rgba(255, 255, 255, 0.045);
+  --color-line: rgba(255, 255, 255, 0.09);
+  --color-muted: #9aa2c0;
+  --color-accent: #8b7cff;
+  --color-cyan: #2ee6ff;
+  --color-good: #3dffa0;
+  --color-bad: #ff5c9a;
+  --color-warn: #ffc857;
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 body {
-  background: var(--color-bg);
-  color: #e6e9ff;
+  background:
+    radial-gradient(900px 500px at 12% -10%, rgba(139, 124, 255, 0.16), transparent 60%),
+    radial-gradient(800px 480px at 95% 0%, rgba(46, 230, 255, 0.09), transparent 60%),
+    var(--color-bg);
+  background-attachment: fixed;
+  color: #eef0ff;
+}
+
+.glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.025));
+  border: 1px solid var(--color-line);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  transition: transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1), border-color 240ms, box-shadow 240ms;
+}
+.lift:hover {
+  transform: translateY(-2px);
+  border-color: rgba(139, 124, 255, 0.45);
+  box-shadow: 0 8px 30px -12px rgba(139, 124, 255, 0.45);
+}
+.neon { box-shadow: 0 0 18px -4px rgba(139, 124, 255, 0.7); }
+
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+main > * { animation: rise 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+input[type="date"] { color-scheme: dark; }
+tbody tr { transition: background 140ms; }
+tbody tr:hover { background: rgba(139, 124, 255, 0.07); }
+button, a { transition: color 140ms, background 140ms, border-color 140ms, transform 140ms; }
+button:active { transform: scale(0.97); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
 }

@@ -2,18 +2,32 @@ import { q, q1 } from "./db";
 import { ymd } from "./meta";
 
 export const PERIODS = { hoy: "Hoy", ayer: "Ayer", "7d": "7 días", "30d": "30 días" } as const;
-export type Period = keyof typeof PERIODS;
+export type Period = keyof typeof PERIODS | "custom";
 export const MODELS = { last_touch: "Último clic", first_touch: "Primer clic" } as const;
 export type Model = keyof typeof MODELS;
 
-export const asPeriod = (v?: string): Period => (v && v in PERIODS ? (v as Period) : "hoy");
+export const asPeriod = (v?: string): Period => (v === "custom" || (v && v in PERIODS) ? (v as Period) : "hoy");
 export const asModel = (v?: string): Model => (v && v in MODELS ? (v as Model) : "last_touch");
 
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const parseDay = (v?: string) => {
+  if (!v || !DATE.test(v)) return undefined;
+  const [y, m, d] = v.split("-").map(Number);
+  const t = new Date(y, m - 1, d);
+  return t.getMonth() === m - 1 ? t.getTime() : undefined; // rejects 2026-02-31
+};
+
 // shortcut: server-local day boundaries; switch to the ad account timezone once Meta is connected.
-export function range(p: Period): { from: number; to: number } {
+// custom: f/t are inclusive YYYY-MM-DD days (swapped if reversed); invalid input falls back to today.
+export function range(p: Period, f?: string, t?: string): { from: number; to: number } {
   const n = new Date();
   const sod = new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime();
   const day = 864e5;
+  if (p === "custom") {
+    const a = parseDay(f);
+    const b = parseDay(t) ?? a;
+    if (a !== undefined && b !== undefined) return { from: Math.min(a, b), to: Math.max(a, b) + day };
+  }
   if (p === "ayer") return { from: sod - day, to: sod };
   if (p === "7d") return { from: sod - 6 * day, to: sod + day };
   if (p === "30d") return { from: sod - 29 * day, to: sod + day };
