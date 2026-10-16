@@ -14,6 +14,7 @@ const NAV: { href: string; label: string; icon: string }[] = [
   { href: "/integraciones", label: "Integraciones", icon: "⇄" },
   { href: "/dashboards", label: "Dashboards", icon: "▦" },
   { href: "/ajustes", label: "Ajustes", icon: "⚙" },
+  { href: "/tutorial", label: "Tutorial", icon: "?" },
 ];
 
 export function Sidebar({ dashes, active }: { dashes: Dash[]; active?: number }) {
