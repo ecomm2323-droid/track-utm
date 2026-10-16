@@ -66,7 +66,7 @@ export default async function Resumen({ searchParams }: { searchParams: Promise<
 
       {series.length > 1 && (
         <div className="mb-3">
-          <Card title={`Gasto y facturación ${v} por día (USD)`}>
+          <Card title={`Gasto y facturación ${v} (USD) · ${(to - from) / 864e5 > 92 ? "por semana" : "por día"}`}>
             <DailyChart rows={series} />
           </Card>
         </div>

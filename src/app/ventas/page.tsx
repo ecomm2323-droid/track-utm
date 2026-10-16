@@ -8,6 +8,8 @@ import { AutoRefresh } from "@/components/auto-refresh";
 export const metadata = { title: "Ventas" };
 export const dynamic = "force-dynamic";
 
+const LIMIT = 2000;
+
 const TONE: Record<string, string> = {
   approved: "text-good",
   pending: "text-yellow-400",
@@ -23,7 +25,7 @@ export default async function Ventas({ searchParams }: { searchParams: Promise<{
   const v = asBasis(sp.v);
   const { from, to } = range(p, sp.f, sp.t);
   const dash = await activeDashboard();
-  const rows = sales(getProject().id, from, to, m, dash?.ad_account_id ?? "");
+  const rows = sales(getProject().id, from, to, m, dash?.ad_account_id ?? "", LIMIT);
 
   return (
     <>
@@ -31,6 +33,7 @@ export default async function Ventas({ searchParams }: { searchParams: Promise<{
       <DashboardNotice name={dash?.name} account={dash?.ad_account_id} />
       <AutoRefresh />
       <Filters base="/ventas" p={p} m={m} v={v} f={sp.f} t={sp.t} />
+      {rows.length >= LIMIT && <p className="text-xs text-muted mb-2">Mostrando las {LIMIT} ventas más recientes del período.</p>}
       <Card className="overflow-x-auto p-0">
         <table className="w-full">
           <thead>

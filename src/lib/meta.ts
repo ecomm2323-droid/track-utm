@@ -71,6 +71,13 @@ export async function syncMeta(account: string, days = 30): Promise<{ rows: numb
   const now = Date.now();
   const since = ymd(now - days * 864e5);
   const until = ymd(now);
+  const n = await pullInsights(pid, account, token, since, until, now);
+  await syncEntities(pid, account, token, now);
+  return { rows: n, since, until };
+}
+
+// Upserts the ad-level daily insights of [since, until] (YYYY-MM-DD). Returns the number of rows.
+async function pullInsights(pid: number, account: string, token: string, since: string, until: string, now: number): Promise<number> {
   const params = new URLSearchParams({
     level: "ad",
     time_increment: "1",
@@ -99,8 +106,29 @@ export async function syncMeta(account: string, days = 30): Promise<{ rows: numb
     }
     url = body.paging?.next;
   }
-  await syncEntities(pid, account, token, now);
-  return { rows: n, since, until };
+  return n;
+}
+
+// One-off history load: walks back 30 days at a time from the regular window until a window comes back empty
+// (the account's start) or 36 months pass (Meta keeps ~37). Marked done in `setting` so it runs once per account.
+// shortcut: an account with a >30-day pause before its first spend would stop early; rerun by deleting its backfill_ setting.
+export async function backfill(account: string): Promise<number> {
+  const pid = getProject().id;
+  const key = `backfill_${account}`;
+  if (q1("select 1 from setting where project_id=? and key=?", pid, key)) return 0;
+  const token = metaToken(pid);
+  if (!token) throw new Error("Meta no conectado");
+  const now = Date.now();
+  let total = 0;
+  for (let i = 1; i <= 36; i++) {
+    const until = ymd(now - ((i - 1) * 30 + 30) * 864e5);
+    const since = ymd(now - (i * 30 + 30) * 864e5);
+    const n = await pullInsights(pid, account, token, since, until, now);
+    total += n;
+    if (!n) break;
+  }
+  run("insert or replace into setting(project_id,key,value) values(?,?,?)", pid, key, ymd(now));
+  return total;
 }
 
 type Entity = {
@@ -149,6 +177,7 @@ export async function syncAll(): Promise<{ account: string; rows?: number; error
   for (const d of dashboards()) {
     try {
       out.push({ account: d.ad_account_id, rows: (await syncMeta(d.ad_account_id)).rows });
+      await backfill(d.ad_account_id);
     } catch (e) {
       out.push({ account: d.ad_account_id, error: e instanceof Error ? e.message : String(e) });
     }

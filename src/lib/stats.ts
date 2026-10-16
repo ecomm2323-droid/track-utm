@@ -1,7 +1,7 @@
 import { q, q1 } from "./db";
 import { ymd } from "./meta";
 
-export const PERIODS = { hoy: "Hoy", ayer: "Ayer", "7d": "7 días", "30d": "30 días" } as const;
+export const PERIODS = { hoy: "Hoy", ayer: "Ayer", "7d": "7 días", "30d": "30 días", todo: "Todo" } as const;
 export type Period = keyof typeof PERIODS | "custom";
 export const MODELS = { last_touch: "Último clic", first_touch: "Primer clic" } as const;
 export type Model = keyof typeof MODELS;
@@ -47,6 +47,13 @@ export function range(p: Period, f?: string, t?: string): { from: number; to: nu
   if (p === "ayer") return { from: sod - day, to: sod };
   if (p === "7d") return { from: sod - 6 * day, to: sod + day };
   if (p === "30d") return { from: sod - 29 * day, to: sod + day };
+  if (p === "todo") {
+    // Since the first recorded sale or Meta spend day, whichever is older.
+    const c = q1<{ t: number | null }>("select min(ts) t from conversion")?.t;
+    const m = q1<{ d: string | null }>("select min(date) d from meta_ad_day")?.d;
+    const first = Math.min(c ?? Infinity, m ? parseDay(m) ?? Infinity : Infinity);
+    return { from: Number.isFinite(first) ? new Date(new Date(first).getFullYear(), new Date(first).getMonth(), new Date(first).getDate()).getTime() : sod, to: sod + day };
+  }
   return { from: sod, to: sod + day };
 }
 
@@ -238,10 +245,10 @@ export const usdSet = (pid: number) => q("select 1 from setting where project_id
 
 export type Day = { date: string; spend: number; rev: number };
 
-// Spend (Meta, USD) and approved revenue (USD, gross or net) per local day; capped to the last 92 days of the range.
+// Spend (Meta, USD) and approved revenue (USD, gross or net) per local day; ranges over 92 days come back as weekly sums.
 export function daily(pid: number, from: number, to: number, model: Model, acc: string, basis: Basis): Day[] {
   const r = usdRate(pid);
-  const start = Math.max(from, to - 92 * 864e5);
+  const start = Math.max(from, to - 1100 * 864e5);
   const spend = new Map(
     q<{ d: string; s: number }>(
       "select date d, sum(spend) s from meta_ad_day where project_id=? and ad_account_id=? and date>=? and date<? group by date",
@@ -261,5 +268,12 @@ export function daily(pid: number, from: number, to: number, model: Model, acc: 
     const date = ymd(t);
     out.push({ date, spend: spend.get(date) ?? 0, rev: rev.get(date) ?? 0 });
   }
-  return out;
+  if (out.length <= 92) return out;
+  // Long ranges: one bar per week so the chart stays readable.
+  const weeks: Day[] = [];
+  for (let i = 0; i < out.length; i += 7) {
+    const w = out.slice(i, i + 7);
+    weeks.push({ date: w[0].date, spend: w.reduce((a, d) => a + d.spend, 0), rev: w.reduce((a, d) => a + d.rev, 0) });
+  }
+  return weeks;
 }
