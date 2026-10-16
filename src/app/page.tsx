@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getProject } from "@/lib/db";
 import { activeDashboard } from "@/lib/active-dashboard";
 import { asBasis, asModel, asPeriod, daily, lastSale, lastSync, overview, range, usdSet } from "@/lib/stats";
-import { Bars, Card, DailyChart, Filters, Kpi, money } from "@/components/ui";
+import { Bars, Card, DailyChart, Filters, Kpi, money, srcLabel } from "@/components/ui";
 import { SyncMeta } from "@/components/sync-meta";
 import { DashboardNotice } from "@/components/dashboard-notice";
 import { AutoRefresh } from "@/components/auto-refresh";
@@ -74,7 +74,7 @@ export default async function Resumen({ searchParams }: { searchParams: Promise<
 
       <div className="grid md:grid-cols-3 gap-3">
         <Card title="Ventas por fuente">
-          <Bars rows={bySource.map((r) => ({ label: r.label, n: r.n, extra: money(v === "neta" ? r.net : r.rev) }))} />
+          <Bars rows={bySource.map((r) => ({ label: srcLabel(r.label), n: r.n, extra: money(v === "neta" ? r.net : r.rev) }))} />
         </Card>
         <Card title="Ventas por método de pago">
           <Bars rows={byMethod.filter((r) => r.n).map((r) => ({ label: r.label, n: r.n }))} />

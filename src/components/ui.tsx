@@ -2,6 +2,8 @@ import Link from "next/link";
 import { BASIS, MODELS, PERIODS, type Basis, type Day, type Model, type Period } from "@/lib/stats";
 import { ymd } from "@/lib/meta";
 
+export const srcLabel = (c: string | null) => (c === "sin_atribucion" ? "Sin atribución" : c ?? "—");
+
 export const money = (n: number) =>
   (n < 0 ? "-$" : "$") + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 

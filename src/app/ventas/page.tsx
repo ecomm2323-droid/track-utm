@@ -1,7 +1,7 @@
 import { getProject } from "@/lib/db";
 import { activeDashboard } from "@/lib/active-dashboard";
 import { asBasis, asModel, asPeriod, range, sales } from "@/lib/stats";
-import { Card, Filters, money, td, th } from "@/components/ui";
+import { Card, Filters, money, srcLabel, td, th } from "@/components/ui";
 import { DashboardNotice } from "@/components/dashboard-notice";
 import { AutoRefresh } from "@/components/auto-refresh";
 
@@ -54,7 +54,7 @@ export default async function Ventas({ searchParams }: { searchParams: Promise<{
                 <td className={td}>{r.platform ?? "—"}</td>
                 <td className={td}>{r.product ?? "—"}</td>
                 <td className={td}>{r.payment_method ?? "—"}</td>
-                <td className={td}>{r.channel ?? "—"}</td>
+                <td className={td}>{srcLabel(r.channel)}</td>
                 <td className={td}>{r.campaign ?? "—"}</td>
                 <td className={td}>{r.ad_name ?? r.ad_id ?? "—"}</td>
                 <td className={`${td} text-muted`}>{r.confidence ?? "—"}</td>
