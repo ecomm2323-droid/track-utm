@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { AUTH_COOKIE, authToken } from "@/lib/auth";
 
 // Reachable without a session: the tracker, checkout webhooks and the login itself.
-const PUBLIC = ["/api/collect", "/api/events", "/api/webhooks", "/tracker.js", "/login"];
+const PUBLIC = ["/api/collect", "/api/events", "/api/webhooks", "/api/mcp", "/tracker.js", "/login"];
 
 export function proxy(req: NextRequest) {
   const password = process.env.APP_PASSWORD;

@@ -3,6 +3,9 @@ import { usdRate } from "@/lib/stats";
 import { Card, money, td, th } from "@/components/ui";
 import { lastBackups } from "@/lib/backup";
 import { tokenDaysLeft } from "@/lib/meta";
+import { headers } from "next/headers";
+import { CopyButton } from "@/components/copy-button";
+import { mcpKey } from "@/lib/mcp-key";
 import { savePricing } from "./actions";
 
 export const metadata = { title: "Ajustes" };
@@ -13,6 +16,10 @@ const field = "bg-black/30 border border-line rounded-lg px-3 py-2 outline-none 
 export default async function Ajustes({ searchParams }: { searchParams: Promise<{ ok?: string }> }) {
   const saved = (await searchParams).ok === "1";
   const pid = getProject().id;
+  const h = await headers();
+  const base = process.env.APP_URL ?? `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host") ?? "localhost:3000"}`;
+  const mcpUrl = `${base}/api/mcp?key=${mcpKey()}`;
+  const mcpCmd = `claude mcp add --transport http attribution "${mcpUrl}"`;
   const rate = usdRate(pid);
   const set = q("select 1 from setting where project_id=? and key='usd_rate'", pid).length > 0;
   const products = q<{ product: string; n: number; avg: number; net: number | null }>(
@@ -68,6 +75,21 @@ export default async function Ajustes({ searchParams }: { searchParams: Promise<
         </p>
         <button className="px-4 py-2 rounded-lg bg-accent text-white font-medium neon">Guardar</button>
       </form>
+
+      <div className="mt-6">
+        <Card title="Conectar con Claude Code (MCP, solo lectura)">
+          <p className="text-muted">
+            Te deja preguntarle a Claude Code por tus campañas, ventas y ROAS. Solo lee: no puede cambiar nada. Pegá esto en una terminal:
+          </p>
+          <div className="flex gap-2 items-start my-2">
+            <pre className="flex-1 bg-bg border border-line rounded p-3 font-mono text-xs whitespace-pre-wrap break-all">{mcpCmd}</pre>
+            <CopyButton text={mcpCmd} />
+          </div>
+          <p className="text-xs text-muted">
+            El link lleva tu clave: quien lo tenga puede leer tus números. No lo compartas. Para que funcione con Claude Code en tu PC, esta página tiene que estar abierta desde la dirección de Railway (no localhost).
+          </p>
+        </Card>
+      </div>
 
       <div className="mt-6">
         <Card title="Copias de seguridad y conexión">
