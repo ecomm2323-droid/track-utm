@@ -10,12 +10,14 @@ export async function register() {
 
   const { syncAll, renewToken } = await import("./lib/meta");
   const { dailyBackup } = await import("./lib/backup");
-  const { importHistory } = await import("./lib/import-sales");
+  const { importHistory, reconcile } = await import("./lib/import-sales");
   const run = () => {
     renewToken().then((r) => r && console.log("[meta] token renovado")).catch((e) => console.error("[meta] renovar token falló:", e.message));
     try {
       const n = importHistory();
       if (n) console.log(`[import] ${n} ventas históricas de Impultienda`);
+      const f = reconcile();
+      if (f) console.log(`[import] ${f} ventas corregidas`);
     } catch (e) {
       console.error("[import] falló:", e instanceof Error ? e.message : e);
     }
