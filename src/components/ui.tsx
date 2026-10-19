@@ -54,7 +54,7 @@ export function Filters({ base, p, m, v, f, t, extra = "" }: { base: string; p: 
         <summary className={`${chip(p === "custom")} cursor-pointer list-none select-none`}>
           {p === "custom" && f ? `${f} → ${t ?? f}` : "Personalizado"}
         </summary>
-        <div className="glass rounded-xl p-3 absolute z-20 mt-2 flex flex-col gap-2 w-64 bg-bg/95">
+        <div className="glass rounded-xl p-3 absolute z-50 mt-2 flex flex-col gap-2 w-64 bg-bg!">
           <div className="flex flex-wrap gap-1.5">
             {quick.map(([label, a, b]) => (
               <Link key={label} href={`${base}?p=custom&m=${m}&v=${v}&f=${ymd(a)}&t=${ymd(b)}${extra}`} className="rounded-lg border border-line px-2.5 py-2 text-xs text-muted hover:text-white hover:border-accent">

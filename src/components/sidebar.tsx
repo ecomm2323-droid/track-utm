@@ -55,7 +55,7 @@ export function Sidebar({ dashes, active }: { dashes: Dash[]; active?: number })
             </span>
             <span className="text-muted group-open:rotate-180 transition-transform">⌄</span>
           </summary>
-          <div className="glass absolute z-30 mt-1 w-full rounded-lg p-1 bg-bg/95">
+          <div className="glass absolute z-50 mt-1 w-full rounded-lg p-1 bg-bg!">
             {dashes.map((d) => (
               <a key={d.id} href={`/dashboards/activate?id=${d.id}`} className={`block rounded px-3 py-2.5 hover:bg-white/10 ${d.id === active ? "text-accent" : ""}`}>
                 {d.name}
