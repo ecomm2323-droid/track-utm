@@ -1,8 +1,9 @@
-import { getProject, q } from "@/lib/db";
+import { getProject, q, q1 } from "@/lib/db";
 import { usdRate } from "@/lib/stats";
 import { Card, money, td, th } from "@/components/ui";
 import { lastBackups } from "@/lib/backup";
-import { tokenDaysLeft } from "@/lib/meta";
+import { tokenDaysLeft, checkAccount } from "@/lib/meta";
+import { dashboards } from "@/lib/dashboards";
 import { headers } from "next/headers";
 import { CopyButton } from "@/components/copy-button";
 import { mcpKey } from "@/lib/mcp-key";
@@ -13,9 +14,32 @@ export const dynamic = "force-dynamic";
 
 const field = "bg-black/30 border border-line rounded-lg px-3 py-2 outline-none focus:border-accent text-white";
 
-export default async function Ajustes({ searchParams }: { searchParams: Promise<{ ok?: string }> }) {
-  const saved = (await searchParams).ok === "1";
+export default async function Ajustes({ searchParams }: { searchParams: Promise<{ ok?: string; check?: string }> }) {
+  const sp = await searchParams;
+  const saved = sp.ok === "1";
   const pid = getProject().id;
+  const checks: { ok: boolean; text: string }[] = [];
+  if (sp.check === "1") {
+    for (const d of dashboards(pid)) {
+      try {
+        checks.push({ ok: true, text: `Meta · ${d.name}: conectado (cuenta «${await checkAccount(d.ad_account_id, pid)}»).` });
+      } catch (e) {
+        checks.push({ ok: false, text: `Meta · ${d.name}: ${(e as Error).message}` });
+      }
+    }
+    if (!checks.length) checks.push({ ok: false, text: "Meta: no hay dashboards creados." });
+    const hook = q1<{ n: number }>("select count(*) n from webhook where project_id=? and platform='impultienda'", pid);
+    const last = q1<{ ts: number; ok: number; note: string }>(
+      "select ts, ok, note from webhook_log where project_id=? and platform='impultienda' order by id desc limit 1", pid,
+    );
+    const when = last && new Date(last.ts).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" });
+    checks.push(
+      !hook?.n ? { ok: false, text: "Impultienda: no creaste el webhook (Integraciones → Webhooks)." }
+      : !last ? { ok: false, text: "Impultienda: webhook creado, pero todavía no llegó ninguna venta." }
+      : last.ok ? { ok: true, text: `Impultienda: último aviso recibido OK el ${when}.` }
+      : { ok: false, text: `Impultienda: el último aviso (${when}) dio error: ${last.note}` },
+    );
+  }
   const h = await headers();
   const base = process.env.APP_URL ?? `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host") ?? "localhost:3000"}`;
   const mcpUrl = `${base}/api/mcp?key=${mcpKey()}`;
@@ -75,6 +99,21 @@ export default async function Ajustes({ searchParams }: { searchParams: Promise<
         </p>
         <button className="px-4 py-2 rounded-lg bg-accent text-white font-medium neon">Guardar</button>
       </form>
+
+      <div className="mt-6">
+        <Card title="Probar conexiones">
+          <p className="text-muted">Revisa que Meta responda con tu token y que Impultienda esté mandando ventas.</p>
+          <a href="/ajustes?check=1" className="inline-block mt-3 px-4 py-2.5 rounded-lg border border-line hover:border-accent">Probar conexiones</a>
+          {checks.length > 0 && (
+            <ul role="status" className="mt-3 space-y-1">
+              {checks.map((c, i) => (
+                <li key={i} className={c.ok ? "text-good" : "text-bad"}>{c.ok ? "✓" : "✕"} {c.text}</li>
+              ))}
+            </ul>
+          )}
+          <p className="text-xs text-muted mt-2">Impultienda no se puede consultar directo: se confía en el último aviso (webhook) recibido.</p>
+        </Card>
+      </div>
 
       <div className="mt-6">
         <Card title="Conectar con Claude Code (MCP, solo lectura)">

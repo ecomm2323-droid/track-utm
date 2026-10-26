@@ -22,6 +22,15 @@ async function graph<T>(path: string): Promise<T> {
   return body;
 }
 
+// Read-only probe: can the saved token see this ad account? Returns the account name or throws Meta's message.
+export async function checkAccount(account: string, pid = getProject().id): Promise<string> {
+  const token = metaToken(pid);
+  if (!token) throw new Error("No hay token de Meta. Tocá «Conectar / reconectar con Meta».");
+  const id = account.startsWith("act_") ? account : `act_${account}`;
+  const r = await graph<{ name: string }>(`/${id}?fields=name&access_token=${encodeURIComponent(token)}`);
+  return r.name;
+}
+
 // Code from the login dialog -> short token -> long-lived token (~60 days).
 export async function exchangeCode(code: string) {
   const client_id = process.env.META_APP_ID;
