@@ -60,7 +60,7 @@ export function range(p: Period, f?: string, t?: string): { from: number; to: nu
 // Sales of one ad account = conversions whose attributed campaign has spend in that account.
 // Expects `c` = conversion alias; placeholders: model, project_id, ad_account_id.
 // Unattributed imported sales (channel sin_atribucion) store the ad account id in ca_id, so they count for that dashboard too.
-const ACC_SALES = `c.id in (select a.conversion_id from attribution a where a.model=? and a.ca_id in
+export const ACC_SALES = `c.id in (select a.conversion_id from attribution a where a.model=? and a.ca_id in
   (select x from (select campaign_id x, project_id, ad_account_id from meta_ad_day
                   union all select ad_account_id, project_id, ad_account_id from meta_ad_day) where project_id=? and ad_account_id=?))`;
 

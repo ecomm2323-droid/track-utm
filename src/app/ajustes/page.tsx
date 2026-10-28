@@ -1,5 +1,6 @@
 import { getProject, q, q1 } from "@/lib/db";
-import { usdRate } from "@/lib/stats";
+import { usdRate, ACC_SALES } from "@/lib/stats";
+import { activeDashboard } from "@/lib/active-dashboard";
 import { Card, money, td, th } from "@/components/ui";
 import { lastBackups } from "@/lib/backup";
 import { tokenDaysLeft, checkAccount } from "@/lib/meta";
@@ -46,11 +47,13 @@ export default async function Ajustes({ searchParams }: { searchParams: Promise<
   const mcpCmd = `claude mcp add --transport http attribution "${mcpUrl}"`;
   const rate = usdRate(pid);
   const set = q("select 1 from setting where project_id=? and key='usd_rate'", pid).length > 0;
+  const active = await activeDashboard();
   const products = q<{ product: string; n: number; avg: number; net: number | null }>(
     `select c.product, count(*) n, avg(c.value) avg,
             (select net_ars from product_net n where n.project_id=c.project_id and n.product=c.product) net
-       from conversion c where c.project_id=? and c.product is not null group by c.product order by n desc`,
+       from conversion c where c.project_id=? and c.product is not null and ${active ? ACC_SALES : "1=0"} group by c.product order by n desc`,
     pid,
+    ...(active ? ["last_touch", pid, active.ad_account_id] : []),
   );
 
   return (
@@ -90,7 +93,7 @@ export default async function Ajustes({ searchParams }: { searchParams: Promise<
                   <td className={`${td} text-good`}>{p.net ? money(p.net / rate) : "—"}</td>
                 </tr>
               ))}
-              {!products.length && <tr><td className={`${td} text-muted`} colSpan={5}>Todavía no hay ventas con producto. Aparecerán acá cuando entre la primera.</td></tr>}
+              {!products.length && <tr><td className={`${td} text-muted`} colSpan={5}>Todavía no hay ventas con producto en el dashboard «{active?.name ?? "—"}». Aparecerán acá cuando entre la primera.</td></tr>}
             </tbody>
           </table>
         </Card>
