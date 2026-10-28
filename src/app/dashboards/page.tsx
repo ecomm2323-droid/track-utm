@@ -46,6 +46,9 @@ export default async function Dashboards() {
                 {list.map((d) => <option key={d.id} value={d.ad_account_id}>{d.name}</option>)}
               </select>
               <button className="px-3 py-2 rounded-lg border border-line hover:border-accent">Guardar</button>
+              <span role="status" className={s.account ? "text-good" : "text-muted"}>
+                {s.account ? `✓ Guardado: ${list.find((d) => d.ad_account_id === s.account)?.name ?? s.account}` : "Sin asignar"}
+              </span>
             </form>
           ))}
           {!stores.length && <p className="text-muted">Todavía no llegó ningún aviso con tienda. En Impultienda, tocá «Probar» en el webhook y recargá.</p>}
