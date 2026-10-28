@@ -48,13 +48,24 @@ export default async function Ajustes({ searchParams }: { searchParams: Promise<
   const rate = usdRate(pid);
   const set = q("select 1 from setting where project_id=? and key='usd_rate'", pid).length > 0;
   const active = await activeDashboard();
-  const products = q<{ product: string; n: number; avg: number; net: number | null }>(
+  const sold = q<{ product: string; n: number; avg: number; net: number | null }>(
     `select c.product, count(*) n, avg(c.value) avg,
             (select net_ars from product_net n where n.project_id=c.project_id and n.product=c.product) net
        from conversion c where c.project_id=? and c.product is not null and ${active ? ACC_SALES : "1=0"} group by c.product order by n desc`,
     pid,
     ...(active ? ["last_touch", pid, active.ad_account_id] : []),
   );
+  // Products the store's webhooks have mentioned but that have no sale yet (n = 0).
+  const seen = !active ? [] : q<{ product: string; net: number | null }>(
+    `select substr(s.key, instr(s.key,'|')+1) product,
+            (select net_ars from product_net n where n.project_id=s.project_id and n.product=substr(s.key, instr(s.key,'|')+1)) net
+       from setting s
+      where s.project_id=? and s.key like 'store_prod:%'
+        and exists (select 1 from setting m where m.project_id=s.project_id
+                     and m.key='store_dash:'||substr(s.key,12,instr(s.key,'|')-12) and m.value=?)`,
+    pid, active.ad_account_id,
+  );
+  const products = [...sold, ...seen.filter((s) => !sold.some((p) => p.product === s.product)).map((s) => ({ ...s, n: 0, avg: 0 }))];
 
   return (
     <>
@@ -86,7 +97,7 @@ export default async function Ajustes({ searchParams }: { searchParams: Promise<
                     {p.product}
                   </td>
                   <td className={td}>{p.n}</td>
-                  <td className={td}>{money(p.avg)}</td>
+                  <td className={td}>{p.n ? money(p.avg) : "—"}</td>
                   <td className={td}>
                     <input aria-label={`Neto en ARS de ${p.product}`} name={`net_${i}`} defaultValue={p.net ?? ""} placeholder="ej. 38000" inputMode="decimal" className={`${field} w-36`} />
                   </td>
