@@ -40,7 +40,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ platform: stri
   }
 
   // Impultienda sends its store in every event: remember it so Dashboards can map store -> ad account.
-  const store = p === "impultienda" ? (body.store as { id?: unknown; name?: unknown } | undefined) : undefined;
+  const data = body.data as { store?: unknown } | undefined;
+  const store = p === "impultienda" ? ((data?.store ?? body.store) as { id?: unknown; name?: unknown } | undefined) : undefined;
   const storeId = typeof store?.id === "string" ? store.id.slice(0, 64) : null;
   if (storeId) {
     run("insert or replace into setting(project_id,key,value) values(?,?,?)", hook.project_id, `store_name:${storeId}`, clip(store?.name, 120) ?? storeId);
