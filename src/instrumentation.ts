@@ -1,6 +1,6 @@
-// Auto-sync Meta at startup and every 10 min while the server runs (catches up after the PC was off). Skipped when META_* env vars are missing.
+// Auto-sync Meta at startup and every 2 min while the server runs (catches up after the PC was off). Skipped when META_* env vars are missing.
 // shortcut: in-process timer, not a real cron; it stops if the server stops. Move to an external scheduler when deployed.
-const EVERY_MS = 10 * 60 * 1000;
+const EVERY_MS = 2 * 60 * 1000;
 
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
