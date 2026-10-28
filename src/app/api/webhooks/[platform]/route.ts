@@ -39,6 +39,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ platform: stri
     return Response.json({ ok: false, error: "unparseable" }); // 200 so the sender does not hammer retries
   }
 
+  // Impultienda sends its store in every event: remember it so Dashboards can map store -> ad account.
+  const store = p === "impultienda" ? (body.store as { id?: unknown; name?: unknown } | undefined) : undefined;
+  const storeId = typeof store?.id === "string" ? store.id.slice(0, 64) : null;
+  if (storeId) {
+    run("insert or replace into setting(project_id,key,value) values(?,?,?)", hook.project_id, `store_name:${storeId}`, clip(store?.name, 120) ?? storeId);
+  }
+
   const skip = skipReason(p, body);
   if (skip) {
     log(true, skip);
@@ -50,7 +57,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ platform: stri
     log(false, "no order id found, check field mapping");
     return Response.json({ ok: false, error: "no_order_id" });
   }
-  recordConversion(getProject(), c);
+  const convId = recordConversion(getProject(), c);
+  const acc = storeId && q1<{ value: string }>("select value from setting where project_id=? and key=?", hook.project_id, `store_dash:${storeId}`)?.value;
+  // Sales with no campaign id land in the dashboard mapped to their store; attributed ones keep their own campaign.
+  if (acc) run("update attribution set ca_id=? where conversion_id=? and ca_id is null", acc, convId);
   log(true, `${c.status} ${c.value} ${clip(c.orderId, 40)}`);
   return Response.json({ ok: true });
 }

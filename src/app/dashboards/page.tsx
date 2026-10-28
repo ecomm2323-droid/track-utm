@@ -1,9 +1,9 @@
-import { getProject } from "@/lib/db";
+import { getProject, q } from "@/lib/db";
 import { dashboards } from "@/lib/dashboards";
 import { activeDashboard } from "@/lib/active-dashboard";
 import { Card, td, th } from "@/components/ui";
 import { ConfirmButton } from "@/components/confirm-button";
-import { createDashboard, deleteDashboard } from "./actions";
+import { createDashboard, deleteDashboard, mapStore } from "./actions";
 
 export const metadata = { title: "Dashboards" };
 export const dynamic = "force-dynamic";
@@ -13,6 +13,13 @@ const field = "bg-bg border border-line rounded px-3 py-2 outline-none focus:bor
 export default async function Dashboards() {
   const list = dashboards(getProject().id);
   const active = await activeDashboard();
+  const pid = getProject().id;
+  const stores = q<{ id: string; name: string; account: string | null }>(
+    `select substr(s.key,12) id, s.value name,
+            (select m.value from setting m where m.project_id=s.project_id and m.key='store_dash:'||substr(s.key,12)) account
+       from setting s where s.project_id=? and s.key like 'store_name:%' order by s.value`,
+    pid,
+  );
 
   return (
     <>
@@ -26,6 +33,24 @@ export default async function Dashboards() {
           </form>
           <p className="text-muted text-xs mt-3">
             Cada dashboard muestra solo el gasto y las ventas atribuidas a esa cuenta. Después de crear, tocá Sincronizar Meta en Resumen.
+          </p>
+        </Card>
+
+        <Card title="Tiendas de Impultienda → dashboard">
+          {stores.map((s) => (
+            <form key={s.id} action={mapStore} className="flex flex-wrap items-center gap-2 py-1">
+              <input type="hidden" name="store" value={s.id} />
+              <span className="min-w-48">{s.name}</span>
+              <select name="account" defaultValue={s.account ?? ""} aria-label={`Dashboard de ${s.name}`} className={field}>
+                <option value="">Sin asignar</option>
+                {list.map((d) => <option key={d.id} value={d.ad_account_id}>{d.name}</option>)}
+              </select>
+              <button className="px-3 py-2 rounded-lg border border-line hover:border-accent">Guardar</button>
+            </form>
+          ))}
+          {!stores.length && <p className="text-muted">Todavía no llegó ningún aviso con tienda. En Impultienda, tocá «Probar» en el webhook y recargá.</p>}
+          <p className="text-muted text-xs mt-3">
+            Las ventas de esa tienda que lleguen sin campaña (sin UTMs ni pixel) se cuentan en el dashboard elegido. Las que traen campaña siguen yendo a la cuenta de esa campaña. Solo vale para ventas nuevas.
           </p>
         </Card>
 

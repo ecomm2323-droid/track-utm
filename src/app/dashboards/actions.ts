@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getProject, run } from "@/lib/db";
+import { getProject, q1, run } from "@/lib/db";
 import { normalizeAccount } from "@/lib/dashboards";
 
 export async function createDashboard(form: FormData) {
@@ -12,6 +12,17 @@ export async function createDashboard(form: FormData) {
     "insert or ignore into dashboard(project_id, name, ad_account_id, created_at) values(?,?,?,?)",
     getProject().id, name, acc, Date.now(),
   );
+  revalidatePath("/dashboards");
+}
+
+export async function mapStore(form: FormData) {
+  const store = String(form.get("store") ?? "").slice(0, 64);
+  const acc = String(form.get("account") ?? "");
+  const pid = getProject().id;
+  if (!store) return;
+  if (acc && q1("select 1 from dashboard where project_id=? and ad_account_id=?", pid, acc)) {
+    run("insert or replace into setting(project_id,key,value) values(?,?,?)", pid, `store_dash:${store}`, acc);
+  } else run("delete from setting where project_id=? and key=?", pid, `store_dash:${store}`);
   revalidatePath("/dashboards");
 }
 
